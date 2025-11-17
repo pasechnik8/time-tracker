@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Главная</title>
+    <title>Трекер часов</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
     <div class="container">
         <h1>Трекер часов</h1>
-        <p class="subtitle">Геннадий придумай зайповый лозунг</p>
+        <p class="subtitle">геннадий все таки придется нам придумать</p>
     </div>
 </header>
 
@@ -23,10 +23,9 @@
         </ul>
     </nav>
 
-    <!-- ГЛАВНАЯ -->
+    <!-- Главная -->
     <section id="dashboard" class="content-section">
         <div class="dashboard-grid">
-
             <!-- Команда -->
             <div class="card">
                 <div class="flex justify-between align-center mb-1">
@@ -35,7 +34,21 @@
                 </div>
 
                 <div id="teamInfo">
-                    <p style="color:#777; text-align:center;">Вы не в команде</p>
+                    <p style="color:#777; text-align:center; margin-bottom:1rem;">Вы не в команде</p>
+
+                    <!-- Ссылка-приглашение -->
+                    <div id="joinByLinkSection" style="margin-top:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border:2px dashed #3498db;">
+                        <label style="display:block; margin-bottom:0.5rem; font-weight:600; color:#2c3e50;">
+                            Есть ссылка-приглашение?
+                        </label>
+                        <div class="input-group">
+                            <input type="text" id="manualInviteInput" placeholder="Вставьте ссылку сюда..." style="flex:1;">
+                            <button onclick="joinByManualLink()">Присоединиться</button>
+                        </div>
+                        <small style="color:#7f8c8d; display:block; margin-top:0.5rem;">
+                            Например: https://site.com/?invite=1731845678901
+                        </small>
+                    </div>
                 </div>
 
                 <div id="inviteLinkSection" style="margin-top:1rem; display:none;">
@@ -47,7 +60,7 @@
                 </div>
             </div>
 
-            <!-- Задачи + Гант -->
+            <!-- Задачи + Гантт -->
             <div>
                 <div class="card mb-2">
                     <div class="flex justify-between align-center mb-1">
@@ -74,6 +87,7 @@
                 <tr>
                     <th>Задача</th>
                     <th>Роль</th>
+                    <th>Ответственный</th>
                     <th>Дедлайн</th>
                     <th>Статус</th>
                     <th>Действия</th>
@@ -88,90 +102,55 @@
     <section id="team" class="content-section" style="display:none;">
         <div class="card">
             <h2>Участники команды</h2>
-            <div id="teamMembersList">
-                <p style="color:#777;">Нет данных</p>
-            </div>
+            <div id="teamMembersList"><p style="color:#777;">Нет данных</p></div>
         </div>
     </section>
 </div>
 
-
-<!-- Создание команды -->
+<!-- Модальные окна -->
 <div id="createTeamModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal('createTeamModal')">&times;</span>
         <h2>Создать команду</h2>
-        <form id="createTeamForm">
-            <label>Название команды *</label>
-            <input type="text" id="teamName" required placeholder="Введите название">
-
-            <label>Предмет *</label>
-            <input type="text" id="teamSubjectInput" required placeholder="Введите предмет">
-
-            <div class="mt-1">
-                <button type="button" onclick="createTeam()">Создать</button>
-            </div>
-        </form>
+        <input type="text" id="teamName" placeholder="Название команды" required>
+        <input type="text" id="teamSubjectInput" placeholder="Предмет" required>
+        <div class="mt-1"><button onclick="createTeam()">Создать</button></div>
     </div>
 </div>
 
-<!-- Создание задачи -->
 <div id="createTaskModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal('createTaskModal')">&times;</span>
         <h2>Новая задача</h2>
-        <form id="createTaskForm">
-            <label>Название *</label>
-            <input type="text" id="taskName" required>
-
-            <label>Роль *</label>
-            <input type="text" id="taskRoleInput" required placeholder="Введите роль">
-
-            <label>Дедлайн *</label>
-            <input type="datetime-local" id="taskDeadline" required>
-
-            <label>Зависит?</label>
-            <select id="taskDependsOn">
-                <option value="">Нет зависимости</option>
-            </select>
-
-            <div class="mt-1">
-                <button type="button" onclick="createTask()">Создать</button>
-            </div>
-        </form>
+        <input type="text" id="taskName" placeholder="Название задачи" required>
+        <input type="text" id="taskRoleInput" placeholder="Роль" required>
+        <input type="text" id="taskAssignee" placeholder="Ответственный" value="">
+        <input type="datetime-local" id="taskDeadline" required>
+        <label>Зависит от:</label>
+        <select id="taskDependsOn"><option value="">Нет зависимости</option></select>
+        <div class="mt-1"><button onclick="createTask()">Создать</button></div>
     </div>
 </div>
 
-<!-- Редактирование задачи -->
 <div id="editTaskModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal('editTaskModal')">&times;</span>
         <h2>Редактировать задачу</h2>
-        <form id="editTaskForm">
-            <input type="hidden" id="editTaskId">
-            <label>Название *</label>
-            <input type="text" id="editTaskName" required>
-
-            <!-- Свободный ввод роли -->
-            <label>Роль *</label>
-            <input type="text" id="editTaskRoleInput" required placeholder="Введите роль">
-
-            <label>Дедлайн *</label>
-            <input type="datetime-local" id="editTaskDeadline" required>
-            <label>Зависит от</label>
-            <select id="editTaskDependsOn">
-                <option value="">Нет зависимости</option>
-            </select>
-            <div class="mt-1 flex gap-1">
-                <button type="button" onclick="saveTaskEdit()">Сохранить</button>
-                <button type="button" onclick="deleteTaskConfirm()" style="background:#e74c3c;">Удалить</button>
-                <button type="button" onclick="closeModal('editTaskModal')" class="secondary">Отмена</button>
-            </div>
-        </form>
+        <input type="hidden" id="editTaskId">
+        <input type="text" id="editTaskName" required>
+        <input type="text" id="editTaskRoleInput" required>
+        <input type="text" id="editTaskAssignee">
+        <input type="datetime-local" id="editTaskDeadline" required>
+        <label>Зависит от:</label>
+        <select id="editTaskDependsOn"><option value="">Нет зависимости</option></select>
+        <div class="mt-1 flex gap-1">
+            <button onclick="saveTaskEdit()">Сохранить</button>
+            <button onclick="deleteTaskConfirm()" style="background:#e74c3c;">Удалить</button>
+            <button onclick="closeModal('editTaskModal')" class="secondary">Отмена</button>
+        </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
