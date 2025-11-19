@@ -2,16 +2,16 @@ using System.Text.Json.Serialization;
 
 namespace time_tracker.Models
 {
-    public class Subject
+    public class Team
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string InviteCode { get; set; } = string.Empty;
         
-        [JsonIgnore]
-        public List<ProjectTask> Tasks { get; set; } = new();
+        // [JsonIgnore]
+        public List<Student> Members { get; set; } = new();
         
-        [JsonIgnore]
-        public List<Deadline> Deadlines { get; set; } = new();
+        public StudentRole DefaultRole { get; set; } = StudentRole.Developer;
     }
 }
