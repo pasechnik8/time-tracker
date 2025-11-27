@@ -9,7 +9,7 @@ namespace time_tracker.Models
         public string Description { get; set; } = string.Empty;
         public string InviteCode { get; set; } = string.Empty;
         
-        // [JsonIgnore]
+        [JsonIgnore]
         public List<Student> Members { get; set; } = new();
         
         public StudentRole DefaultRole { get; set; } = StudentRole.Developer;

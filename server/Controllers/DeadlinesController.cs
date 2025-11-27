@@ -63,23 +63,17 @@ namespace time_tracker.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(deadline).State = EntityState.Modified;
+            var existing = await _context.Deadlines.FindAsync(id);
+            if (existing == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!DeadlineExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            existing.Title = deadline.Title;
+            existing.DueDate = deadline.DueDate;
+            existing.ReminderDate = deadline.ReminderDate;
+            existing.TaskId = deadline.TaskId;
+            existing.SubjectId = deadline.SubjectId;
+            existing.CreatedById = deadline.CreatedById;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }

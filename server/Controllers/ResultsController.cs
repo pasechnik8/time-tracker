@@ -62,23 +62,16 @@ namespace time_tracker.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(result).State = EntityState.Modified;
+            var existing = await _context.Results.FindAsync(id);
+            if (existing == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ResultExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            existing.Title = result.Title;
+            existing.Description = result.Description;
+            existing.Type = result.Type;
+            existing.TaskId = result.TaskId;
+            existing.PrerequisiteResultId = result.PrerequisiteResultId;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }

@@ -19,7 +19,8 @@ namespace time_tracker.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Team>>> GetTeams()
         {
-            return await _context.Teams.Include(t => t.Members).ToListAsync();
+            return await _context.Teams
+                .ToListAsync();
         }
 
         // GET: api/teams/5
@@ -27,7 +28,6 @@ namespace time_tracker.Controllers
         public async Task<ActionResult<Team>> GetTeam(int id)
         {
             var team = await _context.Teams
-                .Include(t => t.Members)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (team == null)
@@ -35,7 +35,25 @@ namespace time_tracker.Controllers
                 return NotFound();
             }
 
-            return team;
+            // Загружаем участников отдельно чтобы избежать циклов
+            var members = await _context.Students.Where(s => s.TeamId == team.Id).ToListAsync();
+
+            // Возвращаем объект вместе с членами через анонимный объект
+            return Ok(new
+            {
+                id = team.Id,
+                name = team.Name,
+                description = team.Description,
+                inviteCode = team.InviteCode,
+                defaultRole = team.DefaultRole,
+                members = members.Select(m => new {
+                    id = m.Id,
+                    name = m.Name,
+                    email = m.Email,
+                    teamId = m.TeamId,
+                    currentRole = m.CurrentRole
+                })
+            });
         }
 
         // POST: api/teams
@@ -44,10 +62,11 @@ namespace time_tracker.Controllers
         {
             // Генерируем уникальный код приглашения
             team.InviteCode = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
-            
+
             _context.Teams.Add(team);
             await _context.SaveChangesAsync();
 
+            // Возвращаем созданную сущность
             return CreatedAtAction(nameof(GetTeam), new { id = team.Id }, team);
         }
 
@@ -60,23 +79,15 @@ namespace time_tracker.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(team).State = EntityState.Modified;
+            var existing = await _context.Teams.FindAsync(id);
+            if (existing == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TeamExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            existing.Name = team.Name;
+            existing.Description = team.Description;
+            // Не перезаписываем inviteCode случайно
+            existing.DefaultRole = team.DefaultRole;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -91,13 +102,20 @@ namespace time_tracker.Controllers
                 return NotFound();
             }
 
+            // Отвязываем участников (если есть) — опционально
+            var members = await _context.Students.Where(s => s.TeamId == id).ToListAsync();
+            foreach (var m in members)
+            {
+                m.TeamId = null;
+            }
+
             _context.Teams.Remove(team);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        // POST: api/teams/1/join/5 - Добавить студента в команду
+        // POST: api/teams/{teamId}/join/{studentId} - Добавить студента в команду
         [HttpPost("{teamId}/join/{studentId}")]
         public async Task<IActionResult> JoinTeam(int teamId, int studentId)
         {
@@ -120,13 +138,12 @@ namespace time_tracker.Controllers
             return Ok(new { message = "Студент добавлен в команду" });
         }
 
-        // GET: api/teams/1/tasks - Получить все задачи команды
+        // GET: api/teams/{teamId}/tasks - Получить все задачи команды (по полю TeamId)
         [HttpGet("{teamId}/tasks")]
         public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTeamTasks(int teamId)
         {
-            var teamTasks = await _context.Students
-                .Where(s => s.TeamId == teamId)
-                .SelectMany(s => s.AssignedTasks)
+            var teamTasks = await _context.Tasks
+                .Where(t => t.TeamId == teamId)
                 .Include(t => t.AssignedStudent)
                 .Include(t => t.Subject)
                 .ToListAsync();

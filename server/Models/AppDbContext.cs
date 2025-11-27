@@ -7,16 +7,16 @@ namespace time_tracker.Models
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
         
-        public DbSet<Student> Students { get; set; }
-        public DbSet<Subject> Subjects { get; set; }
-        public DbSet<ProjectTask> Tasks { get; set; }
-        public DbSet<Team> Teams { get; set; }
-        public DbSet<Deadline> Deadlines { get; set; }
-        public DbSet<Result> Results { get; set; }
+        public DbSet<Student> Students { get; set; } = null!;
+        public DbSet<Subject> Subjects { get; set; } = null!;
+        public DbSet<ProjectTask> Tasks { get; set; } = null!;
+        public DbSet<Team> Teams { get; set; } = null!;
+        public DbSet<Deadline> Deadlines { get; set; } = null!;
+        public DbSet<Result> Results { get; set; } = null!;
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Student - Team: 1 ко многим (студент в одной команде, у команды много студентов)
+            // Student - Team: 1 ко многим
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.Team)
                 .WithMany(t => t.Members)
@@ -46,7 +46,7 @@ namespace time_tracker.Models
                 .WithMany(t => t.Results)
                 .HasForeignKey(r => r.TaskId);
 
-            // ProjectTask - ProjectTask: многие ко многим 
+            // Many-to-many для связей задач (Prerequisites)
             modelBuilder.Entity<ProjectTask>()
                 .HasMany(t => t.Prerequisites)
                 .WithMany()

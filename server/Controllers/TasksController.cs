@@ -66,24 +66,18 @@ namespace time_tracker.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(task).State = EntityState.Modified;
+            var existing = await _context.Tasks.FindAsync(id);
+            if (existing == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TaskExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            existing.Title = task.Title;
+            existing.Description = task.Description;
+            existing.Status = task.Status;
+            existing.Deadline = task.Deadline;
+            existing.SubjectId = task.SubjectId;
+            existing.AssignedStudentId = task.AssignedStudentId;
+            existing.TeamId = task.TeamId;
 
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
@@ -103,7 +97,7 @@ namespace time_tracker.Controllers
             return NoContent();
         }
 
-        // POST: api/tasks/5/assign/2 - Назначить задачу студенту
+        // POST: api/tasks/{taskId}/assign/{studentId} - Назначить задачу студенту
         [HttpPost("{taskId}/assign/{studentId}")]
         public async Task<IActionResult> AssignTask(int taskId, int studentId)
         {
@@ -133,13 +127,12 @@ namespace time_tracker.Controllers
             return tasks;
         }
 
-        // GET: api/tasks/team/5 - Задачи команды (через студентов)
+        // GET: api/tasks/team/5 - Задачи команды (по полю TeamId)
         [HttpGet("team/{teamId}")]
         public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTeamTasks(int teamId)
         {
-            var teamTasks = await _context.Students
-                .Where(s => s.TeamId == teamId)
-                .SelectMany(s => s.AssignedTasks)
+            var teamTasks = await _context.Tasks
+                .Where(t => t.TeamId == teamId)
                 .Include(t => t.AssignedStudent)
                 .Include(t => t.Subject)
                 .ToListAsync();

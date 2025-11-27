@@ -55,23 +55,15 @@ namespace time_tracker.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(student).State = EntityState.Modified;
+            var existing = await _context.Students.FindAsync(id);
+            if (existing == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!StudentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            existing.Name = student.Name;
+            existing.Email = student.Email;
+            existing.TeamId = student.TeamId;
+            existing.CurrentRole = student.CurrentRole;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
