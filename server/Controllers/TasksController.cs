@@ -71,7 +71,6 @@ namespace time_tracker.Controllers
 
             existing.Title = task.Title;
             existing.Description = task.Description;
-            existing.Status = task.Status;
             existing.Deadline = task.Deadline;
             existing.SubjectId = task.SubjectId;
             existing.AssignedStudentId = task.AssignedStudentId;

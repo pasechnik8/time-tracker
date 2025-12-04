@@ -7,7 +7,7 @@ namespace time_tracker.Models
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public TaskStatus Status { get; set; } = TaskStatus.Pending;
+        // public TaskStatus Status { get; set; } = TaskStatus.Pending;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Дедлайн задачи
@@ -22,13 +22,11 @@ namespace time_tracker.Models
 
         // Внешние ключи
         public int? SubjectId { get; set; }
-
         [JsonIgnore]
         public Subject? Subject { get; set; }
 
         // Связь со студентом
         public int? AssignedStudentId { get; set; }
-
         [JsonIgnore]
         public Student? AssignedStudent { get; set; }
 
@@ -37,13 +35,5 @@ namespace time_tracker.Models
 
         [JsonIgnore]
         public List<Result> Results { get; set; } = new();
-    }
-
-    public enum TaskStatus
-    {
-        Pending,
-        InProgress,
-        Completed,
-        Blocked
     }
 }

@@ -18,6 +18,9 @@ namespace time_tracker.Models
         
         [JsonIgnore] 
         public List<Deadline> CreatedDeadlines { get; set; } = new();
+
+        [JsonIgnore]
+        public List<Result> Results { get; set; } = new();
         
         public StudentRole CurrentRole { get; set; }
     }
