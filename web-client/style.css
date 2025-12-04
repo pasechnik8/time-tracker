@@ -1,7 +1,155 @@
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
-body { background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); color:#333; line-height:1.6; }
+body { background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); color:#333; line-height:1.6; min-height:100vh; }
 .container { max-width:1200px; margin:0 auto; padding:20px; }
 
+/* Авторизация */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.auth-title {
+    color: #2c3e50;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    color: #7f8c8d;
+    margin-bottom: 2rem;
+}
+
+.auth-form {
+    text-align: left;
+}
+
+.auth-form h2 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.auth-form .input-group {
+    margin-bottom: 1rem;
+}
+
+.auth-form input,
+.auth-form select,
+.auth-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.auth-form input:focus,
+.auth-form select:focus,
+.auth-form textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52,152,219,0.2);
+}
+
+.auth-btn {
+    width: 100%;
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .3s;
+    margin-top: 1rem;
+}
+
+.auth-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+}
+
+.auth-link {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #7f8c8d;
+}
+
+.auth-link a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-link a:hover {
+    text-decoration: underline;
+}
+
+.auth-message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.auth-message.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.auth-message.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Шапка с пользователем */
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: white;
+}
+
+.logout-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all .3s;
+}
+
+.logout-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* Остальные стили оставляем как были */
 header { background:#2c3e50; color:white; padding:1.5rem 0; text-align:center; border-radius:0 0 16px 16px; box-shadow:0 6px 20px rgba(0,0,0,0.1); }
 h1 { font-size:2.4rem; font-weight:700; }
 .subtitle { font-size:1.1rem; opacity:0.9; }
@@ -51,6 +199,7 @@ tr:hover { background:#f8f9fa; }
 .mb-1 { margin-bottom:1rem; }
 .mt-1 { margin-top:1rem; }
 .gap-05 { gap:0.5rem; }
+.gap-1 { gap:1rem; }
 .input-group { display:flex; gap:0.5rem; }
 .input-group input { flex:1; padding:0.75rem; border:1px solid #ddd; border-radius:8px; }
 

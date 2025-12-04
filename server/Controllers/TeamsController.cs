@@ -25,7 +25,7 @@ namespace time_tracker.Controllers
 
         // GET: api/teams/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Team>> GetTeam(int id)
+        public async Task<ActionResult<object>> GetTeam(int id)
         {
             var team = await _context.Teams
                 .FirstOrDefaultAsync(t => t.Id == id);
@@ -59,13 +59,9 @@ namespace time_tracker.Controllers
         [HttpPost]
         public async Task<ActionResult<Team>> CreateTeam(Team team)
         {
-            // Генерируем уникальный код приглашения
-            team.InviteCode = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
-
             _context.Teams.Add(team);
             await _context.SaveChangesAsync();
 
-            // Возвращаем созданную сущность
             return CreatedAtAction(nameof(GetTeam), new { id = team.Id }, team);
         }
 
@@ -132,12 +128,109 @@ namespace time_tracker.Controllers
             student.TeamId = teamId;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Студент добавлен в команду" });
+            return Ok(new { 
+                message = "Студент добавлен в команду",
+                teamId = team.Id,
+                teamName = team.Name 
+            });
+        }
+
+        // GET: api/teams/invite/{inviteCode} - Найти команду по коду приглашения
+        [HttpGet("invite/{inviteCode}")]
+        public async Task<ActionResult<object>> GetTeamByInviteCode(string inviteCode)
+        {
+            var team = await _context.Teams
+                .Select(t => new
+                {
+                    t.Id,
+                    t.Name,
+                    t.Description,
+                    t.InviteCode,
+                    MemberCount = t.Members.Count
+                })
+                .FirstOrDefaultAsync(t => t.InviteCode == inviteCode);
+
+            if (team == null)
+            {
+                return NotFound(new { message = "Команда не найдена" });
+            }
+
+            return Ok(team);
+        }
+
+        // POST: api/teams/join-by-code - Присоединиться к команде по коду приглашения
+        [HttpPost("join-by-code")]
+        public async Task<ActionResult<object>> JoinTeamByInviteCode([FromBody] JoinByCodeRequest request)
+        {
+            // 1. Находим команду по коду
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.InviteCode == request.InviteCode);
+            
+            if (team == null)
+            {
+                return NotFound(new { message = "Команда с таким кодом не найдена" });
+            }
+
+            // 2. Находим студента
+            var student = await _context.Students.FindAsync(request.StudentId);
+            if (student == null)
+            {
+                return NotFound(new { message = "Студент не найден" });
+            }
+
+            // 3. Проверяем, не состоит ли уже в команде
+            if (student.TeamId.HasValue)
+            {
+                return BadRequest(new { message = "Вы уже состоите в команде" });
+            }
+
+            // 4. Присоединяем
+            student.TeamId = team.Id;
+            await _context.SaveChangesAsync();
+
+            return Ok(new 
+            { 
+                message = $"Вы присоединились к команде '{team.Name}'",
+                teamId = team.Id,
+                teamName = team.Name
+            });
+        }
+
+        // GET: api/teams/{teamId}/all-tasks - Все задачи студентов команды
+        [HttpGet("{teamId}/all-tasks")]
+        public async Task<ActionResult<IEnumerable<ProjectTask>>> GetAllTasksForTeam(int teamId)
+        {
+            // Получаем всех студентов команды
+            var teamStudents = await _context.Students
+                .Where(s => s.TeamId == teamId)
+                .Select(s => s.Id)
+                .ToListAsync();
+
+            if (!teamStudents.Any())
+            {
+                return new List<ProjectTask>();
+            }
+
+            // Получаем задачи всех этих студентов
+            var teamTasks = await _context.Tasks
+                .Where(t => t.AssignedStudentId.HasValue && teamStudents.Contains(t.AssignedStudentId.Value))
+                .Include(t => t.AssignedStudent)
+                .Include(t => t.Subject)
+                .ToListAsync();
+
+            return teamTasks;
         }
 
         private bool TeamExists(int id)
         {
             return _context.Teams.Any(e => e.Id == id);
         }
+    }
+
+    // DTO для запроса присоединения по коду
+    public class JoinByCodeRequest
+    {
+        public string InviteCode { get; set; } = string.Empty;
+        public int StudentId { get; set; }
     }
 }

@@ -1,189 +1,244 @@
 const API_BASE = 'http://localhost:5000/api';
 
-let currentUser = { id: 1, name: "Иванов Иван", teamId: null };
+let currentToken = localStorage.getItem('token');
+let currentUser = null;
 let teams = [];
 let tasks = [];
 let students = [];
+let subjects = [];
 
-// === API функция (универсальная) ===
+// === API функция (с авторизацией) ===
 async function apiCall(endpoint, options = {}) {
     try {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        };
+
+        // Добавляем токен авторизации, если есть
+        if (currentToken) {
+            headers['Authorization'] = `Bearer ${currentToken}`;
+        }
+
         const fetchOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...(options.headers || {})
-            },
+            headers,
             ...options
         };
 
         const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
+        // Если статус 401 - неавторизован
+        if (response.status === 401) {
+            logout();
+            return null;
+        }
+
         // Если статус 204 No Content — возвращаем null
         if (response.status === 204) return null;
 
-        // Попробуем парсить JSON, но если контент не JSON — бросим ошибку
+        // Попробуем парсить JSON
         const text = await response.text();
         if (!text) return null;
+        
         try {
             return JSON.parse(text);
         } catch (e) {
-            // не JSON
             return text;
         }
     } catch (error) {
         console.error('API Error:', error);
-        alert(`Ошибка: ${error.message}`);
+        showAuthMessage(`Ошибка: ${error.message}`, 'error');
         throw error;
+    }
+}
+
+// === Авторизация ===
+async function login() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    
+    if (!email || !password) {
+        showAuthMessage('Введите email и пароль', 'error');
+        return;
+    }
+
+    try {
+        const response = await apiCall('/Auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+
+        if (response && response.token) {
+            // Сохраняем токен и данные пользователя
+            currentToken = response.token;
+            currentUser = response.student;
+            localStorage.setItem('token', currentToken);
+            
+            // Переключаемся на основное приложение
+            switchToMainApp();
+            showAuthMessage('Вход выполнен успешно!', 'success');
+        } else {
+            showAuthMessage('Неверный email или пароль', 'error');
+        }
+    } catch (error) {
+        showAuthMessage('Ошибка входа', 'error');
+    }
+}
+
+async function register() {
+    const name = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value.trim();
+    const role = document.getElementById('registerRole').value;
+    
+    if (!name || !email || !password) {
+        showAuthMessage('Заполните все поля', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showAuthMessage('Пароль должен быть не менее 6 символов', 'error');
+        return;
+    }
+
+    try {
+        const response = await apiCall('/Auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ 
+                name, 
+                email, 
+                password, 
+                currentRole: parseInt(role) 
+            })
+        });
+
+        if (response && response.token) {
+            // Сохраняем токен и данные пользователя
+            currentToken = response.token;
+            currentUser = response.student;
+            localStorage.setItem('token', currentToken);
+            
+            // Переключаемся на основное приложение
+            switchToMainApp();
+            showAuthMessage('Регистрация успешна!', 'success');
+        } else {
+            showAuthMessage('Ошибка регистрации', 'error');
+        }
+    } catch (error) {
+        showAuthMessage('Этот email уже используется', 'error');
+    }
+}
+
+function logout() {
+    currentToken = null;
+    currentUser = null;
+    localStorage.removeItem('token');
+    switchToAuthScreen();
+}
+
+// === Переключение экранов ===
+function switchToAuthScreen() {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+    clearAuthFields();
+}
+
+function switchToMainApp() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    
+    // Показываем имя пользователя
+    if (currentUser) {
+        document.getElementById('userName').textContent = `Привет, ${currentUser.name}`;
+    }
+    
+    // Загружаем данные
+    loadInitialData();
+}
+
+function showRegister() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+    document.getElementById('authMessage').innerHTML = '';
+}
+
+function showLogin() {
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('authMessage').innerHTML = '';
+}
+
+function clearAuthFields() {
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('registerName').value = '';
+    document.getElementById('registerEmail').value = '';
+    document.getElementById('registerPassword').value = '';
+    document.getElementById('authMessage').innerHTML = '';
+}
+
+function showAuthMessage(message, type = 'error') {
+    const messageEl = document.getElementById('authMessage');
+    messageEl.innerHTML = message;
+    messageEl.className = `auth-message ${type}`;
+}
+
+// === Проверка авторизации при загрузке ===
+async function checkAuth() {
+    if (currentToken) {
+        try {
+            // Пробуем получить профиль пользователя
+            const profile = await apiCall('/Auth/profile');
+            if (profile) {
+                currentUser = profile;
+                switchToMainApp();
+            } else {
+                logout();
+            }
+        } catch (error) {
+            logout();
+        }
+    } else {
+        switchToAuthScreen();
     }
 }
 
 // === Загрузка данных при запуске ===
 async function loadInitialData() {
+    if (!currentUser) return;
+    
     try {
-        [teams, tasks, students] = await Promise.all([
+        // Загружаем данные параллельно
+        [teams, students, subjects] = await Promise.all([
             apiCall('/Teams'),
-            apiCall('/Tasks'),
-            apiCall('/Students')
+            apiCall('/Students'),
+            apiCall('/Subjects')
         ]);
 
-        // Находим текущего пользователя в базе
-        const dbUser = (students || []).find(s => s.id === currentUser.id);
-        if (dbUser) {
-            currentUser.teamId = dbUser.teamId;
-            currentUser.name = dbUser.name;
+        // Загружаем задачи текущего студента
+        if (currentUser.id) {
+            tasks = await apiCall(`/Tasks/student/${currentUser.id}`) || [];
+        } else {
+            tasks = [];
         }
 
-        await updateTeamInfo();
-        renderTasks();
-        renderGantt();
-        renderAllTasksTable();
-        showSection('dashboard');
+        updateUI();
     } catch (error) {
         console.error('Failed to load initial data:', error);
     }
 }
 
-// === Инициализация ===
-document.addEventListener('DOMContentLoaded', () => {
-    handleInviteFromUrl();
-    loadInitialData();
-});
-
-async function handleInviteFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite');
-    if (!inviteCode || currentUser.teamId) return;
-
-    try {
-        const allTeams = await apiCall('/Teams');
-        const team = (allTeams || []).find(t => t.inviteCode === inviteCode);
-
-        if (!team) {
-            alert("Команда не найдена. Ссылка недействительна.");
-            history.replaceState(null, null, location.pathname);
-            return;
-        }
-
-        const userTeams = allTeams.filter(t => t.members && t.members.some(m => m.id === currentUser.id));
-        if (userTeams.length > 0) {
-            currentUser.teamId = userTeams[0].id;
-            updateTeamInfo();
-            alert(`Вы уже в команде "${userTeams[0].name}"!`);
-            history.replaceState(null, null, location.pathname);
-            return;
-        }
-
-        if (confirm(`Присоединиться к команде "${team.name}"?`)) {
-            await apiCall(`/Teams/${team.id}/join/${currentUser.id}`, { method: 'POST' });
-            currentUser.teamId = team.id;
-
-            await apiCall(`/Students/${currentUser.id}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    ...currentUser,
-                    teamId: team.id
-                })
-            });
-
-            await loadInitialData();
-            alert(`Добро пожаловать в команду "${team.name}"!`);
-            history.replaceState(null, null, location.pathname);
-        }
-    } catch (error) {
-        console.error('Join team error:', error);
-    }
+// === Обновление всего UI ===
+function updateUI() {
+    updateTeamInfo();
+    renderTasks();
+    renderAllTasksTable();
+    renderTeamMembers();
+    renderSubjects();
+    updateTaskSelects();
 }
 
-// === Присоединиться по вставленной ссылке ===
-async function joinByManualLink() {
-    const inputEl = document.getElementById('manualInviteInput');
-    const input = inputEl ? inputEl.value.trim() : '';
-    if (!input) return alert("Вставьте ссылку-приглашение!");
-
-    let inviteCode;
-    try {
-        const url = new URL(input);
-        inviteCode = url.searchParams.get('invite');
-    } catch (e) {
-        const match = input.match(/invite[=:]([A-Z0-9]+)/i);
-        if (match) inviteCode = match[1];
-    }
-
-    if (!inviteCode) return alert("Проверьте ссылку.");
-
-    history.replaceState(null, null, `${location.pathname}?invite=${inviteCode}`);
-    await handleInviteFromUrl();
-    if (inputEl) inputEl.value = '';
-}
-
-async function createTeam() {
-    const name = document.getElementById('teamName').value.trim();
-    const subject = document.getElementById('teamSubjectInput').value.trim();
-    if (!name || !subject) return alert("Заполните название команды и предмет!");
-
-    try {
-        const newTeam = await apiCall('/Teams', {
-            method: 'POST',
-            body: JSON.stringify({
-                name: name,
-                description: `Команда по предмету: ${subject}`,
-                defaultRole: 1 // Developer
-            })
-        });
-
-        if (!newTeam) throw new Error('Не удалось создать команду');
-
-        await apiCall(`/Teams/${newTeam.id}/join/${currentUser.id}`, { method: 'POST' });
-
-        currentUser.teamId = newTeam.id;
-        await apiCall(`/Students/${currentUser.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                ...currentUser,
-                teamId: newTeam.id
-            })
-        });
-
-        await loadInitialData();
-        closeModal('createTeamModal');
-
-        alert(`Команда "${name}" создана!\nКод приглашения: ${newTeam.inviteCode}`);
-    } catch (error) {
-        console.error('Create team error:', error);
-    }
-}
-
-// === Копирование кода приглашения ===
-function copyInviteLink() {
-    const team = (teams || []).find(t => t.id === currentUser.teamId);
-    if (!team) return;
-
-    const inviteLink = `${location.origin}${location.pathname}?invite=${team.inviteCode}`;
-    navigator.clipboard.writeText(inviteLink);
-    alert("Ссылка скопирована!");
-}
-
-// === Обновление блока "Ваша команда" ===
+// === Обновление информации о команде ===
 async function updateTeamInfo() {
     const info = document.getElementById('teamInfo');
     const linkSec = document.getElementById('inviteLinkSection');
@@ -200,7 +255,7 @@ async function updateTeamInfo() {
                         <button onclick="joinByManualLink()">Присоединиться</button>
                     </div>
                     <small style="color:#7f8c8d; display:block; margin-top:0.5rem;">
-                        Например: ABC123DEF
+                        Например: ABC123DE
                     </small>
                 </div>`;
         }
@@ -209,136 +264,52 @@ async function updateTeamInfo() {
         return;
     }
 
-    // Получаем актуальные данные команды с сервера
-    const team = await apiCall(`/Teams/${currentUser.teamId}`);
+    const team = (teams || []).find(t => t.id === currentUser.teamId);
     if (!team) return;
 
     if (btn) btn.style.display = 'none';
     if (linkSec) linkSec.style.display = 'block';
 
-    const inviteLink = `${location.origin}${location.pathname}?invite=${team.inviteCode}`;
-    const inviteInput = document.getElementById('inviteLink');
-    if (inviteInput) inviteInput.value = inviteLink;
-
-    const joinSection = document.getElementById('joinByLinkSection');
-    if (joinSection) joinSection.remove();
-
-    // Получаем список участников
-    const membersList = team.members && team.members.length
-        ? `<ul>${team.members.map(m => `<li>${m.name} (${m.email || '-'})</li>`).join('')}</ul>`
-        : '<p style="color:#777;">Нет участников</p>';
-
     if (info) {
         info.innerHTML = `
-        <h3>${team.name}</h3>
-        <p><strong>Описание:</strong> ${team.description}</p>
-        <p><strong>Код приглашения:</strong> ${team.inviteCode}</p>
-        <p><strong>Участники (${team.members?.length || 0}):</strong></p>
-        ${membersList}`;
-    }
-}
-
-async function createTask() {
-    const name = document.getElementById('taskName').value.trim();
-    const role = document.getElementById('taskRoleInput').value.trim();
-    const assignee = document.getElementById('taskAssignee').value.trim() || currentUser.name;
-    const deadline = document.getElementById('taskDeadline').value;
-
-    if (!name || !role || !deadline || !currentUser.teamId) {
-        alert("Заполните все обязательные поля и вступите в команду!");
-        return;
+            <h3>${team.name}</h3>
+            <p><strong>Описание:</strong> ${team.description || 'Нет описания'}</p>
+            <p><strong>Код приглашения:</strong> <code>${team.inviteCode}</code></p>`;
     }
 
-    try {
-        let assignedStudentId = currentUser.id;
-        if (assignee !== currentUser.name) {
-            const assignedStudent = (students || []).find(s => s.name === assignee);
-            if (assignedStudent) {
-                assignedStudentId = assignedStudent.id;
-            } else {
-                const newStudent = await apiCall('/Students', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: assignee,
-                        email: `${assignee.toLowerCase().replace(' ', '.')}@edu.ru`,
-                        teamId: currentUser.teamId,
-                        currentRole: 1 // Developer
-                    })
-                });
-                assignedStudentId = newStudent.id;
-                students.push(newStudent);
-            }
-        }
-
-        const newTask = await apiCall('/Tasks', {
-            method: 'POST',
-            body: JSON.stringify({
-                title: name,
-                description: `Роль: ${role}`,
-                status: 0, // Pending
-                subjectId: 1,
-                assignedStudentId: assignedStudentId,
-                teamId: currentUser.teamId,
-                deadline: new Date(deadline).toISOString()
-            })
-        });
-
-        await loadInitialData();
-        closeModal('createTaskModal');
-    } catch (error) {
-        console.error('Create task error:', error);
-    }
-}
-
-// === Переключение статуса задачи ===
-async function toggleTaskStatus(id) {
-    try {
-        const task = (tasks || []).find(t => t.id === id);
-        if (!task) return;
-
-        const newStatus = task.status === 2 ? 0 : 2;
-
-        await apiCall(`/Tasks/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                ...task,
-                status: newStatus
-            })
-        });
-
-        await loadInitialData();
-    } catch (error) {
-        console.error('Toggle task status error:', error);
-    }
+    const inviteInput = document.getElementById('inviteCode');
+    if (inviteInput) inviteInput.value = team.inviteCode;
 }
 
 // === Отображение задач на главной ===
 function renderTasks() {
     const container = document.getElementById('tasksList');
-    const teamTasks = (tasks || []).filter(t => t.teamId === currentUser.teamId);
+    if (!container) return;
 
-    if (!teamTasks.length) {
-        container.innerHTML = '<p style="color:#777;text-align:center;">Задач пока нет. Добавь первую!</p>';
+    const myTasks = (tasks || []).filter(t => t.assignedStudentId === currentUser.id);
+    
+    if (!myTasks.length) {
+        container.innerHTML = '<p style="color:#777;text-align:center;">Задач пока нет. Добавьте первую!</p>';
         return;
     }
 
-    container.innerHTML = teamTasks.map(t => {
-        const statusText = t.status === 2 ? 'Готово' : (t.status === 1 ? 'В работе' : 'Ожидание');
-        const statusClass = t.status === 2 ? 'completed' : (t.status === 1 ? 'in-progress' : 'pending');
-
-        const assignee = (students || []).find(s => s.id === t.assignedStudentId)?.name || 'Не назначен';
+    container.innerHTML = myTasks.map(task => {
+        const completedResults = task.results?.filter(r => r.isCompleted) || [];
+        const isCompleted = completedResults.length > 0;
+        const statusText = isCompleted ? 'Выполнено' : 'В работе';
+        const statusClass = isCompleted ? 'completed' : 'in-progress';
 
         return `
             <div class="task-item">
-                <label>
-                    <input type="checkbox" ${t.status === 2 ? 'checked' : ''} onchange="toggleTaskStatus(${t.id})">
-                    <strong>${t.title}</strong> <small>${t.description}</small>
-                </label>
+                <div>
+                    <strong>${task.title}</strong>
+                    <p style="margin:0.25rem 0; color:#666;">${task.description || ''}</p>
+                    <small style="color:#888;">Предмет: ${task.subject?.name || 'Не указан'}</small>
+                </div>
                 <div class="task-meta">
-                    <small>${assignee}</small>
-                    <small>${formatDate(t.deadline)}</small>
+                    <small>${formatDate(task.deadline)}</small>
                     <span class="status ${statusClass}">${statusText}</span>
-                    <button onclick="openEditTask(${t.id})" class="edit-btn">Edit</button>
+                    <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
                 </div>
             </div>`;
     }).join('');
@@ -349,42 +320,309 @@ function renderAllTasksTable() {
     const tbody = document.querySelector('#allTasksTable tbody');
     if (!tbody) return;
 
-    const teamTasks = (tasks || []).filter(t => t.teamId === currentUser.teamId);
-
-    if (!teamTasks.length) {
+    const myTasks = (tasks || []).filter(t => t.assignedStudentId === currentUser.id);
+    
+    if (!myTasks.length) {
         tbody.innerHTML = `<tr><td colspan="6" style="color:#777; text-align:center;">Нет задач</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = teamTasks.map(t => {
-        const statusText = t.status === 2 ? 'Готово' : (t.status === 1 ? 'В работе' : 'Ожидание');
-        const statusClass = t.status === 2 ? 'completed' : (t.status === 1 ? 'in-progress' : 'pending');
-        const assignee = (students || []).find(s => s.id === t.assignedStudentId)?.name || 'Не назначен';
+    tbody.innerHTML = myTasks.map(task => {
+        const completedResults = task.results?.filter(r => r.isCompleted) || [];
+        const isCompleted = completedResults.length > 0;
+        const statusText = isCompleted ? 'Выполнено' : 'В работе';
+        const statusClass = isCompleted ? 'completed' : 'in-progress';
 
         return `
             <tr>
-                <td><strong>${t.title}</strong><br><small>${t.description}</small></td>
-                <td>${t.description.replace('Роль: ', '')}</td>
-                <td>${assignee}</td>
-                <td>${formatDate(t.deadline)}</td>
+                <td><strong>${task.title}</strong><br><small>${task.description || ''}</small></td>
+                <td>${task.subject?.name || 'Не указан'}</td>
+                <td>Вы</td>
+                <td>${formatDate(task.deadline)}</td>
                 <td><span class="status ${statusClass}">${statusText}</span></td>
                 <td>
-                    <button onclick="openEditTask(${t.id})" class="edit-btn">Edit</button>
-                    <button onclick="deleteTaskConfirm(${t.id})" style="background:#e74c3c;margin-left:5px;">Delete</button>
+                    <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
                 </td>
             </tr>`;
     }).join('');
 }
 
-function openEditTask(id) {
-    const t = (tasks || []).find(x => x.id === id);
-    if (!t) return;
+// === Отображение участников команды ===
+function renderTeamMembers() {
+    const container = document.getElementById('teamMembersList');
+    if (!container) return;
 
-    document.getElementById('editTaskId').value = t.id;
-    document.getElementById('editTaskName').value = t.title;
-    document.getElementById('editTaskRoleInput').value = t.description.replace('Роль: ', '');
-    document.getElementById('editTaskAssignee').value = (students || []).find(s => s.id === t.assignedStudentId)?.name || '';
-    const dl = t.deadline ? new Date(t.deadline) : null;
+    if (!currentUser.teamId) {
+        container.innerHTML = '<p style="color:#777;">Вы не состоите в команде</p>';
+        return;
+    }
+
+    const teamMembers = (students || []).filter(s => s.teamId === currentUser.teamId);
+    
+    if (!teamMembers.length) {
+        container.innerHTML = '<p style="color:#777;">Нет участников</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+            ${teamMembers.map(member => `
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 12px; border-left: 4px solid #3498db;">
+                    <strong style="font-size: 1.1rem;">${member.name}</strong>
+                    ${member.id === currentUser.id ? ' <small>(Вы)</small>' : ''}
+                    <div style="margin-top: 0.5rem;">
+                        <small style="background: #e3f2fd; padding: 0.2rem 0.5rem; border-radius: 20px;">
+                            ${getRoleName(member.currentRole)}
+                        </small>
+                    </div>
+                    <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+                        <div>📧 ${member.email || 'Нет email'}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+// === Отображение предметов ===
+function renderSubjects() {
+    const container = document.getElementById('subjectsList');
+    if (!container) return;
+    
+    if (!subjects || subjects.length === 0) {
+        container.innerHTML = '<p style="color:#777;">Нет предметов. Добавьте первый!</p>';
+        return;
+    }
+    
+    container.innerHTML = subjects.map(subject => `
+        <div class="subject-card" style="margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border-left:4px solid #3498db;">
+            <h3 style="margin:0 0 0.5rem 0;">${subject.name}</h3>
+            <p style="margin:0; color:#555;">${subject.description || 'Нет описания'}</p>
+            <p style="margin-top:0.5rem; font-size:0.9rem; color:#666;">
+                Задач: ${subject.tasks?.length || 0}
+            </p>
+        </div>
+    `).join('');
+}
+
+// === Обновление select'ов в формах ===
+function updateTaskSelects() {
+    // Заполняем список предметов
+    const subjectSelect = document.getElementById('taskSubject');
+    const editSubjectSelect = document.getElementById('editTaskSubject');
+    
+    if (subjectSelect) {
+        subjectSelect.innerHTML = '<option value="">Выберите предмет</option>' +
+            (subjects || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+    
+    if (editSubjectSelect) {
+        editSubjectSelect.innerHTML = '<option value="">Выберите предмет</option>' +
+            (subjects || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+    
+    // Заполняем список студентов команды (для назначения задач)
+    const assigneeSelect = document.getElementById('taskAssignee');
+    const editAssigneeSelect = document.getElementById('editTaskAssignee');
+    
+    if (assigneeSelect) {
+        assigneeSelect.innerHTML = '<option value="">Не назначать</option>' +
+            '<option value="' + currentUser.id + '">Вы</option>';
+        
+        if (currentUser.teamId) {
+            const teamStudents = (students || []).filter(s => 
+                s.teamId === currentUser.teamId && s.id !== currentUser.id);
+            teamStudents.forEach(s => {
+                assigneeSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+        }
+    }
+    
+    if (editAssigneeSelect) {
+        editAssigneeSelect.innerHTML = '<option value="">Не назначать</option>' +
+            '<option value="' + currentUser.id + '">Вы</option>';
+        
+        if (currentUser.teamId) {
+            const teamStudents = (students || []).filter(s => 
+                s.teamId === currentUser.teamId && s.id !== currentUser.id);
+            teamStudents.forEach(s => {
+                editAssigneeSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+        }
+    }
+}
+
+// === Создание команды ===
+async function createTeam() {
+    const name = document.getElementById('teamName').value.trim();
+    const description = document.getElementById('teamDescription').value.trim();
+    
+    if (!name) {
+        alert("Введите название команды!");
+        return;
+    }
+
+    try {
+        const newTeam = await apiCall('/Teams', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: name,
+                description: description
+            })
+        });
+
+        // Добавляем текущего пользователя в команду
+        await apiCall(`/Teams/${newTeam.id}/join/${currentUser.id}`, { 
+            method: 'POST' 
+        });
+
+        // Обновляем студента
+        await apiCall(`/Students/${currentUser.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                ...currentUser,
+                teamId: newTeam.id
+            })
+        });
+
+        currentUser.teamId = newTeam.id;
+        
+        // Перезагружаем данные
+        await loadInitialData();
+        closeModal('createTeamModal');
+        
+        alert(`Команда "${name}" создана!`);
+    } catch (error) {
+        console.error('Create team error:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+// === Создание задачи ===
+async function createTask() {
+    const name = document.getElementById('taskName').value.trim();
+    const description = document.getElementById('taskDescription').value.trim();
+    const subjectId = document.getElementById('taskSubject').value;
+    const assigneeId = document.getElementById('taskAssignee').value;
+    const deadline = document.getElementById('taskDeadline').value;
+
+    if (!name || !deadline || !subjectId) {
+        alert("Заполните название, дедлайн и выберите предмет!");
+        return;
+    }
+
+    try {
+        // Определяем ответственного
+        const assignedStudentId = assigneeId ? parseInt(assigneeId) : currentUser.id;
+
+        const newTask = await apiCall('/Tasks', {
+            method: 'POST',
+            body: JSON.stringify({
+                title: name,
+                description: description,
+                deadline: new Date(deadline).toISOString(),
+                subjectId: parseInt(subjectId),
+                assignedStudentId: assignedStudentId
+            })
+        });
+
+        await loadInitialData();
+        closeModal('createTaskModal');
+        alert('Задача создана!');
+    } catch (error) {
+        console.error('Create task error:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+// === Создание предмета ===
+async function createSubject() {
+    const name = document.getElementById('subjectName').value.trim();
+    const description = document.getElementById('subjectDescription').value.trim();
+    
+    if (!name) {
+        alert("Введите название предмета!");
+        return;
+    }
+    
+    try {
+        const newSubject = await apiCall('/Subjects', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: name,
+                description: description
+            })
+        });
+        
+        await loadInitialData();
+        closeModal('createSubjectModal');
+        alert(`Предмет "${name}" создан!`);
+    } catch (error) {
+        console.error('Create subject error:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+// === Присоединение по коду ===
+async function joinByManualLink() {
+    const inputEl = document.getElementById('manualInviteInput');
+    const inviteCode = inputEl ? inputEl.value.trim().toUpperCase() : '';
+    
+    if (!inviteCode) {
+        alert("Введите код приглашения!");
+        return;
+    }
+
+    try {
+        // Получаем информацию о команде
+        const teamInfo = await apiCall(`/Teams/invite/${inviteCode}`);
+        if (!teamInfo) {
+            alert("Команда не найдена. Проверьте код.");
+            return;
+        }
+
+        if (confirm(`Присоединиться к команде "${teamInfo.name}"?`)) {
+            // Присоединяемся
+            await apiCall(`/Teams/${teamInfo.id}/join/${currentUser.id}`, { 
+                method: 'POST' 
+            });
+
+            // Обновляем текущего пользователя
+            currentUser.teamId = teamInfo.id;
+            await loadInitialData();
+            
+            alert(`Вы присоединились к команде "${teamInfo.name}"!`);
+            
+            if (inputEl) inputEl.value = '';
+        }
+    } catch (error) {
+        console.error('Join team error:', error);
+        alert("Ошибка при присоединении к команде");
+    }
+}
+
+// === Редактирование задачи ===
+function openEditTask(id) {
+    const task = (tasks || []).find(x => x.id === id);
+    if (!task) return;
+
+    document.getElementById('editTaskId').value = task.id;
+    document.getElementById('editTaskName').value = task.title;
+    document.getElementById('editTaskDescription').value = task.description || '';
+    
+    // Выбираем предмет
+    const editSubjectSelect = document.getElementById('editTaskSubject');
+    if (editSubjectSelect && task.subjectId) {
+        editSubjectSelect.value = task.subjectId;
+    }
+    
+    // Выбираем ответственного
+    const editAssigneeSelect = document.getElementById('editTaskAssignee');
+    if (editAssigneeSelect) {
+        editAssigneeSelect.value = task.assignedStudentId || '';
+    }
+    
+    // Устанавливаем дедлайн
+    const dl = task.deadline ? new Date(task.deadline) : null;
     if (dl) {
         const local = new Date(dl.getTime() - dl.getTimezoneOffset() * 60000).toISOString().slice(0,16);
         document.getElementById('editTaskDeadline').value = local;
@@ -399,40 +637,22 @@ async function saveTaskEdit() {
     try {
         const id = parseInt(document.getElementById('editTaskId').value, 10);
         const title = document.getElementById('editTaskName').value.trim();
-        const role = document.getElementById('editTaskRoleInput').value.trim();
-        const assignee = document.getElementById('editTaskAssignee').value.trim();
+        const description = document.getElementById('editTaskDescription').value.trim();
+        const subjectId = document.getElementById('editTaskSubject').value;
+        const assigneeId = document.getElementById('editTaskAssignee').value;
         const deadline = document.getElementById('editTaskDeadline').value;
 
         const task = (tasks || []).find(t => t.id === id);
         if (!task) return alert('Задача не найдена');
-
-        let assignedStudentId = task.assignedStudentId || currentUser.id;
-        if (assignee && assignee !== currentUser.name) {
-            const assignedStudent = (students || []).find(s => s.name === assignee);
-            if (assignedStudent) {
-                assignedStudentId = assignedStudent.id;
-            } else {
-                const newStudent = await apiCall('/Students', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: assignee,
-                        email: `${assignee.toLowerCase().replace(' ', '.')}@edu.ru`,
-                        teamId: currentUser.teamId,
-                        currentRole: 1
-                    })
-                });
-                assignedStudentId = newStudent.id;
-                students.push(newStudent);
-            }
-        }
 
         await apiCall(`/Tasks/${id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 ...task,
                 title: title,
-                description: `Роль: ${role}`,
-                assignedStudentId: assignedStudentId,
+                description: description,
+                subjectId: subjectId ? parseInt(subjectId) : null,
+                assignedStudentId: assigneeId ? parseInt(assigneeId) : null,
                 deadline: deadline ? new Date(deadline).toISOString() : null
             })
         });
@@ -441,35 +661,56 @@ async function saveTaskEdit() {
         closeModal('editTaskModal');
     } catch (error) {
         console.error('Save task edit error:', error);
+        alert(`Ошибка: ${error.message}`);
     }
 }
 
-async function deleteTaskConfirm(idFromButton) {
-    let id = idFromButton;
-    if (!id) {
-        id = parseInt(document.getElementById('editTaskId').value, 10);
-    }
-    if (!id) return;
+// === Вспомогательные функции ===
+function getRoleName(roleValue) {
+    const roles = {
+        0: 'Тимлид',
+        1: 'Разработчик',
+        2: 'Дизайнер',
+        3: 'Тестировщик',
+        4: 'Аналитик'
+    };
+    return roles[roleValue] || 'Участник';
+}
 
-    if (!confirm('Удалить задачу?')) return;
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
 
-    try {
-        await apiCall(`/Tasks/${id}`, { method: 'DELETE' });
-        await loadInitialData();
-        closeModal('editTaskModal');
-    } catch (error) {
-        console.error('Delete task error:', error);
-    }
+function copyInviteCode() {
+    const team = (teams || []).find(t => t.id === currentUser.teamId);
+    if (!team) return;
+    
+    navigator.clipboard.writeText(team.inviteCode);
+    alert(`Код "${team.inviteCode}" скопирован!`);
 }
 
 function openModal(id) {
     const m = document.getElementById(id);
     if (m) m.style.display = 'block';
 }
+
 function closeModal(id) {
     const m = document.getElementById(id);
-    if (m) m.style.display = 'none';
+    if (m) {
+        m.style.display = 'none';
+        // Очищаем поля формы
+        const inputs = m.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            if (input.type !== 'button' && input.type !== 'submit') {
+                input.value = '';
+            }
+        });
+    }
 }
+
 function showSection(id) {
     document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
     document.getElementById(id).style.display = 'block';
@@ -478,15 +719,8 @@ function showSection(id) {
         if (a.getAttribute('onclick')?.includes(id)) a.classList.add('active');
     });
 }
-function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return '-';
-    return d.toLocaleString();
-}
 
-function renderGantt() {
-    const el = document.getElementById('ganttChart');
-    if (!el) return;
-    el.innerHTML = '<p style="color:#777;">Диаграммы Ганта пока нет — тут будет график.</p>';
-}
+// === Инициализация ===
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+});
