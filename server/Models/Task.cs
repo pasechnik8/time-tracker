@@ -11,9 +11,6 @@ namespace time_tracker.Models
         // Дедлайн задачи
         public DateTime? Deadline { get; set; }
 
-        // Команда, к которой прикреплена задача
-        public int? TeamId { get; set; }
-
         // Ссылки на необходимые задачи
         [JsonIgnore]
         public List<ProjectTask> Prerequisites { get; set; } = new();

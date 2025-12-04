@@ -45,7 +45,6 @@ namespace time_tracker.Controllers
                 name = team.Name,
                 description = team.Description,
                 inviteCode = team.InviteCode,
-                defaultRole = team.DefaultRole,
                 members = members.Select(m => new {
                     id = m.Id,
                     name = m.Name,
@@ -84,8 +83,6 @@ namespace time_tracker.Controllers
 
             existing.Name = team.Name;
             existing.Description = team.Description;
-            // Не перезаписываем inviteCode случайно
-            existing.DefaultRole = team.DefaultRole;
 
             await _context.SaveChangesAsync();
 
@@ -136,19 +133,6 @@ namespace time_tracker.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Студент добавлен в команду" });
-        }
-
-        // GET: api/teams/{teamId}/tasks - Получить все задачи команды (по полю TeamId)
-        [HttpGet("{teamId}/tasks")]
-        public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTeamTasks(int teamId)
-        {
-            var teamTasks = await _context.Tasks
-                .Where(t => t.TeamId == teamId)
-                .Include(t => t.AssignedStudent)
-                .Include(t => t.Subject)
-                .ToListAsync();
-
-            return teamTasks;
         }
 
         private bool TeamExists(int id)

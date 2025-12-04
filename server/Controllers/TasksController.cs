@@ -73,7 +73,6 @@ namespace time_tracker.Controllers
             existing.Deadline = task.Deadline;
             existing.SubjectId = task.SubjectId;
             existing.AssignedStudentId = task.AssignedStudentId;
-            existing.TeamId = task.TeamId;
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -123,19 +122,6 @@ namespace time_tracker.Controllers
                 .ToListAsync();
 
             return tasks;
-        }
-
-        // GET: api/tasks/team/5 - Задачи команды (по полю TeamId)
-        [HttpGet("team/{teamId}")]
-        public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTeamTasks(int teamId)
-        {
-            var teamTasks = await _context.Tasks
-                .Where(t => t.TeamId == teamId)
-                .Include(t => t.AssignedStudent)
-                .Include(t => t.Subject)
-                .ToListAsync();
-
-            return teamTasks;
         }
 
         private bool TaskExists(int id)

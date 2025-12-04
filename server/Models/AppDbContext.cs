@@ -19,26 +19,37 @@ namespace time_tracker.Models
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.Team)
                 .WithMany(t => t.Members)
-                .HasForeignKey(s => s.TeamId);
-
-            // ProjectTask - Subject: 1 ко многим
-            modelBuilder.Entity<ProjectTask>()
-                .HasOne(t => t.Subject)
-                .WithMany(s => s.Tasks)
-                .HasForeignKey(t => t.SubjectId);
+                .HasForeignKey(s => s.TeamId)
+                .OnDelete(DeleteBehavior.SetNull);
                 
             // ProjectTask - Student: 1 ко многим  
             modelBuilder.Entity<ProjectTask>()
                 .HasOne(t => t.AssignedStudent)
                 .WithMany(s => s.AssignedTasks)
-                .HasForeignKey(t => t.AssignedStudentId);
-
+                .HasForeignKey(t => t.AssignedStudentId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // ProjectTask - Subject: 1 ко многим
+            modelBuilder.Entity<ProjectTask>()
+                .HasOne(t => t.Subject)
+                .WithMany(s => s.Tasks)
+                .HasForeignKey(t => t.SubjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
             // Result - ProjectTask: 1 ко многим
             modelBuilder.Entity<Result>()
                 .HasOne(r => r.Task)
                 .WithMany(t => t.Results)
-                .HasForeignKey(r => r.TaskId);
-
+                .HasForeignKey(r => r.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Result - Student: 1 ко многим
+            modelBuilder.Entity<Result>()
+                .HasOne(r => r.Student)
+                .WithMany(s => s.Results)
+                .HasForeignKey(r => r.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
             // Many-to-many для связей задач (Prerequisites)
             modelBuilder.Entity<ProjectTask>()
                 .HasMany(t => t.Prerequisites)
