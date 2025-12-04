@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace time_tracker.Models
 {
@@ -7,14 +9,18 @@ namespace time_tracker.Models
         public int Id { get; set; }
 
         // Связь с задачей
+        [Required]
         public int TaskId { get; set; }
         [JsonIgnore]
-        public ProjectTask Task { get; set; }
+        [ValidateNever]
+        public ProjectTask Task { get; set; } = null!;
 
         // Связь со студентом
+        [Required]
         public int StudentId { get; set; }
         [JsonIgnore]
-        public Student Student { get; set; }
+        [ValidateNever]
+        public Student Student { get; set; } = null!;
 
         // Статус выполнения
         public bool IsCompleted { get; set; } = false;

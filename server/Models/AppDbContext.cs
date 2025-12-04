@@ -11,7 +11,6 @@ namespace time_tracker.Models
         public DbSet<Subject> Subjects { get; set; } = null!;
         public DbSet<ProjectTask> Tasks { get; set; } = null!;
         public DbSet<Team> Teams { get; set; } = null!;
-        public DbSet<Deadline> Deadlines { get; set; } = null!;
         public DbSet<Result> Results { get; set; } = null!;
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -33,12 +32,6 @@ namespace time_tracker.Models
                 .HasOne(t => t.AssignedStudent)
                 .WithMany(s => s.AssignedTasks)
                 .HasForeignKey(t => t.AssignedStudentId);
-
-            // Deadline - Student: 1 ко многим
-            modelBuilder.Entity<Deadline>()
-                .HasOne(d => d.CreatedBy)
-                .WithMany(s => s.CreatedDeadlines)
-                .HasForeignKey(d => d.CreatedById);
 
             // Result - ProjectTask: 1 ко многим
             modelBuilder.Entity<Result>()

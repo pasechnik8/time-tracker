@@ -33,7 +33,6 @@ namespace time_tracker.Controllers
                 .Include(t => t.Subject)
                 .Include(t => t.AssignedStudent)
                 .Include(t => t.Prerequisites)
-                .Include(t => t.Deadlines)
                 .Include(t => t.Results)
                 .FirstOrDefaultAsync(t => t.Id == id);
 

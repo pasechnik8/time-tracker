@@ -15,9 +15,6 @@ namespace time_tracker.Models
         
         [JsonIgnore]
         public List<ProjectTask> AssignedTasks { get; set; } = new();
-        
-        [JsonIgnore] 
-        public List<Deadline> CreatedDeadlines { get; set; } = new();
 
         [JsonIgnore]
         public List<Result> Results { get; set; } = new();
