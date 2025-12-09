@@ -19,7 +19,9 @@ namespace time_tracker.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Subject>>> GetSubjects()
         {
-            return await _context.Subjects.ToListAsync();
+            return await _context.Subjects
+                .Include(s => s.Tasks)
+                .ToListAsync();
         }
 
         // GET: api/subjects/5

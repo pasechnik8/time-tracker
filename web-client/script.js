@@ -3,9 +3,10 @@ const API_BASE = 'http://localhost:5000/api';
 let currentToken = localStorage.getItem('token');
 let currentUser = null;
 let teams = [];
-let tasks = [];
 let students = [];
 let subjects = [];
+let myTasks = [];
+let teamTasks = [];
 
 // === API функция (с авторизацией) ===
 async function apiCall(endpoint, options = {}) {
@@ -215,9 +216,11 @@ async function loadInitialData() {
             apiCall('/Subjects')
         ]);
 
+        myTasks = await apiCall(`/Tasks/student/${currentUser.id}`) || [];
+
         // Загружаем задачи текущего студента
-        if (currentUser.id) {
-            tasks = await apiCall(`/Tasks/student/${currentUser.id}`) || [];
+        if (currentUser.teamId) {
+            teamTasks = await apiCall(`/Teams/${currentUser.teamId}/all-tasks`) || [];
         } else {
             tasks = [];
         }
@@ -281,33 +284,70 @@ async function updateTeamInfo() {
     if (inviteInput) inviteInput.value = team.inviteCode;
 }
 
-// === Отображение задач на главной ===
+// === Отображение МОИХ задач на главной ===
 function renderTasks() {
     const container = document.getElementById('tasksList');
     if (!container) return;
 
-    const myTasks = (tasks || []).filter(t => t.assignedStudentId === currentUser.id);
-    
-    if (!myTasks.length) {
-        container.innerHTML = '<p style="color:#777;text-align:center;">Задач пока нет. Добавьте первую!</p>';
+    // Показываем ТОЛЬКО СВОИ задачи
+    if (!myTasks || myTasks.length === 0) {
+        container.innerHTML = '<p style="color:#777;text-align:center;">У вас пока нет задач. Добавьте первую!</p>';
         return;
     }
 
-    container.innerHTML = myTasks.map(task => {
+    // Сортируем по дедлайну (сначала просроченные)
+    const sortedTasks = [...myTasks].sort((a, b) => {
+        const aDate = a.deadline ? new Date(a.deadline) : new Date(9999, 11, 31);
+        const bDate = b.deadline ? new Date(b.deadline) : new Date(9999, 11, 31);
+        return aDate - bDate;
+    });
+
+    container.innerHTML = sortedTasks.map(task => {
+        // Находим предмет по subjectId
+        const subject = (subjects || []).find(s => s.id === task.subjectId);
+        const subjectName = subject ? subject.name : 'Не указан';
+        
+        // Определяем статус задачи
         const completedResults = task.results?.filter(r => r.isCompleted) || [];
         const isCompleted = completedResults.length > 0;
-        const statusText = isCompleted ? 'Выполнено' : 'В работе';
-        const statusClass = isCompleted ? 'completed' : 'in-progress';
+        const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isCompleted;
+        
+        let statusText = 'В работе';
+        let statusClass = 'in-progress';
+        
+        if (isCompleted) {
+            statusText = 'Выполнено';
+            statusClass = 'completed';
+        } else if (isOverdue) {
+            statusText = 'Просрочено';
+            statusClass = 'overdue';
+        }
+
+        // Форматируем дедлайн
+        let deadlineText = formatDate(task.deadline);
+        if (isOverdue) {
+            deadlineText = `<span style="color:#e74c3c;">${deadlineText} (просрочено)</span>`;
+        }
 
         return `
-            <div class="task-item">
-                <div>
+            <div class="task-item ${isOverdue ? 'overdue-task' : ''}" style="${isOverdue ? 'border-left: 4px solid #e74c3c;' : ''}">
+                <div style="flex:1;">
                     <strong>${task.title}</strong>
                     <p style="margin:0.25rem 0; color:#666;">${task.description || ''}</p>
-                    <small style="color:#888;">Предмет: ${task.subject?.name || 'Не указан'}</small>
+                    <div style="display:flex; gap:1rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
+                        <div>
+                            <small style="color:#888;">
+                                <strong>Предмет:</strong> ${subjectName}
+                            </small>
+                        </div>
+                        <div>
+                            <small style="color:#888;">
+                                <strong>Дедлайн:</strong> ${deadlineText}
+                            </small>
+                        </div>
+                    </div>
                 </div>
                 <div class="task-meta">
-                    <small>${formatDate(task.deadline)}</small>
                     <span class="status ${statusClass}">${statusText}</span>
                     <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
                 </div>
@@ -315,33 +355,110 @@ function renderTasks() {
     }).join('');
 }
 
-// === Таблица всех задач ===
+// === Таблица ВСЕХ задач команды ===
 function renderAllTasksTable() {
     const tbody = document.querySelector('#allTasksTable tbody');
     if (!tbody) return;
 
-    const myTasks = (tasks || []).filter(t => t.assignedStudentId === currentUser.id);
-    
-    if (!myTasks.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="color:#777; text-align:center;">Нет задач</td></tr>`;
+    // Показываем задачи ВСЕЙ команды
+    if (!currentUser.teamId) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="color:#777; text-align:center; padding:2rem;">
+                    <div style="margin-bottom:1rem;">Вы не состоите в команде</div>
+                    <button onclick="openModal('createTeamModal')">Создать команду</button>
+                    или
+                    <button onclick="document.getElementById('manualInviteInput')?.focus()">Присоединиться</button>
+                </td>
+            </tr>`;
         return;
     }
 
-    tbody.innerHTML = myTasks.map(task => {
+    if (!teamTasks || teamTasks.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="color:#777; text-align:center;">
+                    В вашей команде пока нет задач. 
+                    <a href="#" onclick="showSection('dashboard'); openModal('createTaskModal')" style="color:#3498db;">
+                        Создайте первую задачу!
+                    </a>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    // Сортируем по дедлайну (сначала просроченные)
+    const sortedTasks = [...teamTasks].sort((a, b) => {
+        const aDate = a.deadline ? new Date(a.deadline) : new Date(9999, 11, 31);
+        const bDate = b.deadline ? new Date(b.deadline) : new Date(9999, 11, 31);
+        return aDate - bDate;
+    });
+
+    tbody.innerHTML = sortedTasks.map(task => {
+        const isMyTask = task.assignedStudentId === currentUser.id;
+        const assignee = (students || []).find(s => s.id === task.assignedStudentId);
+        const assigneeName = assignee ? assignee.name : 'Не назначен';
+        
+        // Находим предмет - сначала из загруженных данных задачи, потом из subjects
+        const subject = task.subject || (subjects || []).find(s => s.id === task.subjectId);
+        const subjectName = subject ? subject.name : 'Не указан';
+        
+        // Определяем статус задачи
         const completedResults = task.results?.filter(r => r.isCompleted) || [];
         const isCompleted = completedResults.length > 0;
-        const statusText = isCompleted ? 'Выполнено' : 'В работе';
-        const statusClass = isCompleted ? 'completed' : 'in-progress';
+        const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isCompleted;
+        
+        let statusText = 'В работе';
+        let statusClass = 'in-progress';
+        
+        if (isCompleted) {
+            statusText = 'Выполнено';
+            statusClass = 'completed';
+        } else if (isOverdue) {
+            statusText = 'Просрочено';
+            statusClass = 'overdue';
+        }
+
+        // Форматируем дедлайн
+        let deadlineText = formatDate(task.deadline);
+        if (isOverdue) {
+            deadlineText = `<span style="color:#e74c3c">${deadlineText}</span>`;
+        }
+
+        // Цвет строки в зависимости от того, чья это задача
+        const rowStyle = isMyTask ? 'background: #f0f8ff;' : 
+                        isOverdue ? 'background: #ffebee;' : '';
 
         return `
-            <tr>
-                <td><strong>${task.title}</strong><br><small>${task.description || ''}</small></td>
-                <td>${task.subject?.name || 'Не указан'}</td>
-                <td>Вы</td>
-                <td>${formatDate(task.deadline)}</td>
+            <tr style="${rowStyle}">
+                <td>
+                    <strong>${task.title}</strong>
+                    <br><small>${task.description || ''}</small>
+                    ${isMyTask ? '<br><small style="color:#3498db;">(Ваша задача)</small>' : ''}
+                </td>
+                <td>
+                    <strong>${subjectName}</strong>
+                    ${subject?.description ? `<br><small style="color:#666;">${subject.description}</small>` : ''}
+                </td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        ${isMyTask ? 
+                            '<span style="background:#3498db;color:white;padding:2px 6px;border-radius:12px;font-size:0.8rem;">Вы</span>' : 
+                            assigneeName
+                        }
+                        ${assignee && !isMyTask ? 
+                            `<br><small style="color:#888;">${assignee.email}</small>` : 
+                            ''
+                        }
+                    </div>
+                </td>
+                <td>${deadlineText}</td>
                 <td><span class="status ${statusClass}">${statusText}</span></td>
                 <td>
-                    <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
+                    <button onclick="${isMyTask ? `openEditTask(${task.id})` : `viewTaskDetails(${task.id})`}" 
+                            class="${isMyTask ? 'edit-btn' : 'view-btn'}">
+                        ${isMyTask ? 'Редактировать' : 'Просмотр'}
+                    </button>
                 </td>
             </tr>`;
     }).join('');
@@ -602,23 +719,38 @@ async function joinByManualLink() {
 
 // === Редактирование задачи ===
 function openEditTask(id) {
-    const task = (tasks || []).find(x => x.id === id);
+    // Ищем задачу сначала в своих задачах, потом в задачах команды
+    let task = (myTasks || []).find(x => x.id === id);
+    if (!task) {
+        task = (teamTasks || []).find(x => x.id === id);
+    }
+    
     if (!task) return;
 
     document.getElementById('editTaskId').value = task.id;
     document.getElementById('editTaskName').value = task.title;
     document.getElementById('editTaskDescription').value = task.description || '';
     
-    // Выбираем предмет
+    // Заполняем выпадающий список предметов
     const editSubjectSelect = document.getElementById('editTaskSubject');
-    if (editSubjectSelect && task.subjectId) {
-        editSubjectSelect.value = task.subjectId;
+    if (editSubjectSelect) {
+        editSubjectSelect.innerHTML = '<option value="">Выберите предмет</option>' +
+            (subjects || []).map(s => `<option value="${s.id}" ${s.id === task.subjectId ? 'selected' : ''}>${s.name}</option>`).join('');
     }
     
-    // Выбираем ответственного
+    // Заполняем выпадающий список ответственных
     const editAssigneeSelect = document.getElementById('editTaskAssignee');
     if (editAssigneeSelect) {
-        editAssigneeSelect.value = task.assignedStudentId || '';
+        editAssigneeSelect.innerHTML = '<option value="">Не назначать</option>' +
+            '<option value="' + currentUser.id + '" ' + (task.assignedStudentId === currentUser.id ? 'selected' : '') + '>Вы</option>';
+        
+        if (currentUser.teamId) {
+            const teamStudents = (students || []).filter(s => 
+                s.teamId === currentUser.teamId && s.id !== currentUser.id);
+            teamStudents.forEach(s => {
+                editAssigneeSelect.innerHTML += `<option value="${s.id}" ${s.id === task.assignedStudentId ? 'selected' : ''}>${s.name}</option>`;
+            });
+        }
     }
     
     // Устанавливаем дедлайн
@@ -642,7 +774,8 @@ async function saveTaskEdit() {
         const assigneeId = document.getElementById('editTaskAssignee').value;
         const deadline = document.getElementById('editTaskDeadline').value;
 
-        const task = (tasks || []).find(t => t.id === id);
+        // Находим задачу в API
+        const task = await apiCall(`/Tasks/${id}`);
         if (!task) return alert('Задача не найдена');
 
         await apiCall(`/Tasks/${id}`, {
@@ -657,8 +790,10 @@ async function saveTaskEdit() {
             })
         });
 
+        // Перезагружаем ВСЕ данные
         await loadInitialData();
         closeModal('editTaskModal');
+        alert('Задача обновлена!');
     } catch (error) {
         console.error('Save task edit error:', error);
         alert(`Ошибка: ${error.message}`);
