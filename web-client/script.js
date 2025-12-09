@@ -218,16 +218,56 @@ async function loadInitialData() {
 
         myTasks = await apiCall(`/Tasks/student/${currentUser.id}`) || [];
 
-        // Загружаем задачи текущего студента
+        // Загружаем задачи команды
         if (currentUser.teamId) {
             teamTasks = await apiCall(`/Teams/${currentUser.teamId}/all-tasks`) || [];
         } else {
-            tasks = [];
+            teamTasks = [];
         }
+
+        // Загружаем статусы выполнения для задач
+        await loadTaskStatuses();
 
         updateUI();
     } catch (error) {
         console.error('Failed to load initial data:', error);
+    }
+}
+
+// === Загрузка статусов выполнения задач ===
+async function loadTaskStatuses() {
+    // Загружаем статусы для моих задач
+    if (myTasks && myTasks.length > 0) {
+        for (let task of myTasks) {
+            try {
+                const status = await apiCall(`/Results/status/${task.id}`);
+                if (status !== undefined && status !== null) {
+                    if (!task.results) task.results = [];
+                    task.results[0] = { isCompleted: status };
+                }
+            } catch (error) {
+                console.error(`Error loading status for task ${task.id}:`, error);
+                if (!task.results) task.results = [];
+                task.results[0] = { isCompleted: false };
+            }
+        }
+    }
+    
+    // Загружаем статусы для задач команды
+    if (teamTasks && teamTasks.length > 0) {
+        for (let task of teamTasks) {
+            try {
+                const status = await apiCall(`/Results/status/${task.id}`);
+                if (status !== undefined && status !== null) {
+                    if (!task.results) task.results = [];
+                    task.results[0] = { isCompleted: status };
+                }
+            } catch (error) {
+                console.error(`Error loading status for task ${task.id}:`, error);
+                if (!task.results) task.results = [];
+                task.results[0] = { isCompleted: false };
+            }
+        }
     }
 }
 
@@ -331,25 +371,39 @@ function renderTasks() {
 
         return `
             <div class="task-item ${isOverdue ? 'overdue-task' : ''}" style="${isOverdue ? 'border-left: 4px solid #e74c3c;' : ''}">
-                <div style="flex:1;">
-                    <strong>${task.title}</strong>
-                    <p style="margin:0.25rem 0; color:#666;">${task.description || ''}</p>
-                    <div style="display:flex; gap:1rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
-                        <div>
-                            <small style="color:#888;">
-                                <strong>Предмет:</strong> ${subjectName}
-                            </small>
+                <div style="display:flex; align-items:flex-start; gap:1rem; width:100%;">
+                    <!-- Чекбокс выполнения -->
+                    <div style="margin-top:0.3rem;">
+                        <input type="checkbox" 
+                               id="task-checkbox-${task.id}" 
+                               ${isCompleted ? 'checked' : ''}
+                               onchange="toggleTaskCompletion(${task.id})"
+                               style="width:20px; height:20px; cursor:pointer; accent-color:#3498db;">
+                    </div>
+                    
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                            <strong>${task.title}</strong>
+                            <span class="status ${statusClass}" style="font-size:0.8rem; padding:0.2rem 0.6rem;">${statusText}</span>
                         </div>
-                        <div>
-                            <small style="color:#888;">
-                                <strong>Дедлайн:</strong> ${deadlineText}
-                            </small>
+                        <p style="margin:0.25rem 0; color:#666;">${task.description || ''}</p>
+                        <div style="display:flex; gap:1rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
+                            <div>
+                                <small style="color:#888;">
+                                    <strong>Предмет:</strong> ${subjectName}
+                                </small>
+                            </div>
+                            <div>
+                                <small style="color:#888;">
+                                    <strong>Дедлайн:</strong> ${deadlineText}
+                                </small>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="task-meta">
-                    <span class="status ${statusClass}">${statusText}</span>
-                    <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
+                    
+                    <div class="task-meta">
+                        <button onclick="openEditTask(${task.id})" class="edit-btn">Редактировать</button>
+                    </div>
                 </div>
             </div>`;
     }).join('');
@@ -364,7 +418,7 @@ function renderAllTasksTable() {
     if (!currentUser.teamId) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="color:#777; text-align:center; padding:2rem;">
+                <td colspan="7" style="color:#777; text-align:center; padding:2rem;">
                     <div style="margin-bottom:1rem;">Вы не состоите в команде</div>
                     <button onclick="openModal('createTeamModal')">Создать команду</button>
                     или
@@ -377,7 +431,7 @@ function renderAllTasksTable() {
     if (!teamTasks || teamTasks.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="color:#777; text-align:center;">
+                <td colspan="7" style="color:#777; text-align:center;">
                     В вашей команде пока нет задач. 
                     <a href="#" onclick="showSection('dashboard'); openModal('createTaskModal')" style="color:#3498db;">
                         Создайте первую задачу!
@@ -431,10 +485,20 @@ function renderAllTasksTable() {
 
         return `
             <tr style="${rowStyle}">
-                <td>
-                    <strong>${task.title}</strong>
-                    <br><small>${task.description || ''}</small>
-                    ${isMyTask ? '<br><small style="color:#3498db;">(Ваша задача)</small>' : ''}
+                <td style="vertical-align:top;">
+                    <div style="display:flex; align-items:flex-start; gap:0.5rem;">
+                        <!-- Чекбокс для всех задач -->
+                        <input type="checkbox" 
+                               id="team-task-checkbox-${task.id}" 
+                               ${isCompleted ? 'checked' : ''}
+                               onchange="toggleTaskCompletion(${task.id})"
+                               style="margin-top:0.3rem; accent-color:#3498db; width:18px; height:18px;">
+                        <div>
+                            <strong>${task.title}</strong>
+                            <br><small>${task.description || ''}</small>
+                            ${isMyTask ? '<br><small style="color:#3498db;">(Ваша задача)</small>' : ''}
+                        </div>
+                    </div>
                 </td>
                 <td>
                     <strong>${subjectName}</strong>
@@ -454,6 +518,12 @@ function renderAllTasksTable() {
                 </td>
                 <td>${deadlineText}</td>
                 <td><span class="status ${statusClass}">${statusText}</span></td>
+                <td style="text-align:center;">
+                    ${isCompleted ? 
+                        '<span style="color:#27ae60; font-weight:bold;">Выполнено</span>' : 
+                        '<span style="color:#e74c3c; font-weight:bold;">Не выполнено</span>'
+                    }
+                </td>
                 <td>
                     <button onclick="${isMyTask ? `openEditTask(${task.id})` : `viewTaskDetails(${task.id})`}" 
                             class="${isMyTask ? 'edit-btn' : 'view-btn'}">
@@ -510,15 +580,20 @@ function renderSubjects() {
         return;
     }
     
-    container.innerHTML = subjects.map(subject => `
-        <div class="subject-card" style="margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border-left:4px solid #3498db;">
-            <h3 style="margin:0 0 0.5rem 0;">${subject.name}</h3>
-            <p style="margin:0; color:#555;">${subject.description || 'Нет описания'}</p>
-            <p style="margin-top:0.5rem; font-size:0.9rem; color:#666;">
-                Задач: ${subject.tasks?.length || 0}
-            </p>
-        </div>
-    `).join('');
+    // Считаем задачи для каждого предмета
+    container.innerHTML = subjects.map(subject => {
+        // Используем tasks из загруженных данных предмета
+        const tasksCount = subject.tasks ? subject.tasks.length : 0;
+        
+        return `
+            <div class="subject-card" style="margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border-left:4px solid #3498db;">
+                <h3 style="margin:0 0 0.5rem 0;">${subject.name}</h3>
+                <p style="margin:0; color:#555;">${subject.description || 'Нет описания'}</p>
+                <p style="margin-top:0.5rem; font-size:0.9rem; color:#666;">
+                    Задач: <strong>${tasksCount}</strong>
+                </p>
+            </div>`;
+    }).join('');
 }
 
 // === Обновление select'ов в формах ===
@@ -800,6 +875,65 @@ async function saveTaskEdit() {
     }
 }
 
+// === Чекбокс для выполнения задач ===
+async function toggleTaskCompletion(taskId) {
+    try {
+        const response = await apiCall(`/Results/toggle/${taskId}`, {
+            method: 'POST'
+        });
+
+        if (response) {
+            // Обновляем статус задачи во всех массивах
+            updateTaskStatus(taskId, response.isCompleted);
+            
+            // Перерисовываем интерфейс
+            renderTasks();
+            renderAllTasksTable();
+            
+            // Показываем уведомление
+            showNotification(response.isCompleted ? 
+                'Задача выполнена' : 
+                'Задача снова в работе', 
+                'success');
+        }
+    } catch (error) {
+        console.error('Toggle completion error:', error);
+        showNotification('Ошибка при обновлении статуса', 'error');
+        
+        // Возвращаем чекбокс в исходное состояние
+        const checkbox = document.getElementById(`task-checkbox-${taskId}`) || 
+                         document.getElementById(`team-task-checkbox-${taskId}`);
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+        }
+    }
+}
+
+// === Обновление статуса задачи в массивах ===
+function updateTaskStatus(taskId, isCompleted) {
+    // Обновляем в myTasks
+    const myTask = myTasks?.find(t => t.id === taskId);
+    if (myTask) {
+        if (!myTask.results) myTask.results = [];
+        if (myTask.results.length === 0) {
+            myTask.results.push({ isCompleted: isCompleted });
+        } else {
+            myTask.results[0].isCompleted = isCompleted;
+        }
+    }
+    
+    // Обновляем в teamTasks
+    const teamTask = teamTasks?.find(t => t.id === taskId);
+    if (teamTask) {
+        if (!teamTask.results) teamTask.results = [];
+        if (teamTask.results.length === 0) {
+            teamTask.results.push({ isCompleted: isCompleted });
+        } else {
+            teamTask.results[0].isCompleted = isCompleted;
+        }
+    }
+}
+
 // === Вспомогательные функции ===
 function getRoleName(roleValue) {
     const roles = {
@@ -853,6 +987,45 @@ function showSection(id) {
     document.querySelectorAll('nav ul li a').forEach(a => {
         if (a.getAttribute('onclick')?.includes(id)) a.classList.add('active');
     });
+}
+
+// === Показ уведомлений ===
+function showNotification(message, type = 'info') {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-weight: 500;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// === Просмотр деталей задачи ===
+function viewTaskDetails(taskId) {
+    // Можно реализовать позже
+    alert('Просмотр деталей задачи #' + taskId);
+}
+
+// === Удаление задачи ===
+function deleteTaskConfirm() {
+    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+        // Можно реализовать позже
+        alert('Функция удаления будет реализована позже');
+    }
 }
 
 // === Инициализация ===

@@ -161,11 +161,12 @@
                                     <th>Ответственный</th>
                                     <th>Дедлайн</th>
                                     <th>Статус</th>
+                                    <th>Выполнение</th>
                                     <th>Действия</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td colspan="6" style="color:#777; text-align:center;">Загрузка...</td></tr>
+                                <tr><td colspan="7" style="color:#777; text-align:center;">Загрузка...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -225,10 +226,6 @@
                     </select>
                     <label>Дедлайн:</label>
                     <input type="datetime-local" id="taskDeadline" required>
-                    <label>Зависит от:</label>
-                    <select id="taskDependsOn">
-                        <option value="">Нет зависимости</option>
-                    </select>
                     <div class="mt-1">
                         <button onclick="createTask()">Создать</button>
                         <button onclick="closeModal('createTaskModal')" class="secondary">Отмена</button>
@@ -262,10 +259,6 @@
                     <select id="editTaskAssignee"></select>
                     <label>Дедлайн:</label>
                     <input type="datetime-local" id="editTaskDeadline" required>
-                    <label>Зависит от:</label>
-                    <select id="editTaskDependsOn">
-                        <option value="">Нет зависимости</option>
-                    </select>
                     <div class="mt-1 flex gap-1">
                         <button onclick="saveTaskEdit()">Сохранить</button>
                         <button onclick="deleteTaskConfirm()" style="background:#e74c3c;">Удалить</button>
