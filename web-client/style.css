@@ -149,7 +149,6 @@ body { background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); color:#333; l
     background: rgba(255,255,255,0.3);
 }
 
-/* Остальные стили оставляем как были */
 header { background:#2c3e50; color:white; padding:1.5rem 0; text-align:center; border-radius:0 0 16px 16px; box-shadow:0 6px 20px rgba(0,0,0,0.1); }
 h1 { font-size:2.4rem; font-weight:700; }
 .subtitle { font-size:1.1rem; opacity:0.9; }
@@ -181,11 +180,6 @@ tr:hover { background:#f8f9fa; }
 .status.in-progress { background:#f39c12; color:white; }
 .status.pending { background:#95a5a6; color:white; }
 
-.gantt-bar { height:36px; margin:8px 0; border-radius:8px; position:relative; overflow:hidden; background:linear-gradient(90deg,#e74c3c 0%,#f39c12 50%,#27ae60 100%); box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-.gantt-bar-fill { height:100%; background:rgba(255,255,255,0.3); border-radius:8px; transition:width .6s ease; }
-.gantt-label { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:white; font-weight:600; font-size:0.9rem; z-index:2; }
-.gantt-time { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:white; font-size:0.8rem; font-weight:bold; }
-
 .task-item { padding:0.75rem; background:#f8f9fa; border-radius:10px; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; }
 .task-item.blocked { opacity:0.6; pointer-events:none; }
 .task-meta { font-size:0.85rem; color:#555; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
@@ -197,6 +191,7 @@ tr:hover { background:#f8f9fa; }
 .justify-between { justify-content:space-between; }
 .align-center { align-items:center; }
 .mb-1 { margin-bottom:1rem; }
+.mb-2 { margin-bottom:1.5rem; }
 .mt-1 { margin-top:1rem; }
 .gap-05 { gap:0.5rem; }
 .gap-1 { gap:1rem; }
@@ -208,3 +203,371 @@ tr:hover { background:#f8f9fa; }
 @keyframes modalIn { from {opacity:0; transform:translateY(-50px);} to {opacity:1; transform:translateY(0);} }
 .close { float:right; font-size:1.8rem; font-weight:bold; cursor:pointer; color:#aaa; }
 .close:hover { color:#e74c3c; }
+
+/* === Диаграмма Ганта === */
+.gantt-container {
+    overflow-x: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    margin-top: 1rem;
+    max-height: 600px;
+    transition: max-height 0.3s ease;
+}
+
+.gantt-header {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 900px;
+}
+
+.gantt-task-header {
+    width: 300px;
+    min-width: 300px;
+    padding: 0.75rem 1rem;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+}
+
+.gantt-timeline {
+    flex: 1;
+    min-width: 600px;
+    position: relative;
+    height: 40px;
+}
+
+.gantt-timeline-dates {
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
+
+.gantt-date-marker {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background: #ddd;
+    transform: translateX(-50%);
+}
+
+.gantt-date-marker.today {
+    background: #3498db;
+    width: 2px;
+}
+
+.gantt-date-label {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.gantt-today-line {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    background: #3498db;
+    border-radius: 50%;
+}
+
+.gantt-content {
+    min-height: 200px;
+    min-width: 900px;
+}
+
+.gantt-task-row {
+    display: flex;
+    min-height: 60px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 900px;
+}
+
+.gantt-task-row:hover {
+    background-color: #f8f9fa;
+}
+
+.gantt-task-info {
+    width: 300px;
+    min-width: 300px;
+    padding: 0.75rem 1rem;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.gantt-task-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    flex-wrap: wrap;
+}
+
+.task-color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.my-task-badge {
+    background: #3498db;
+    color: white;
+    padding: 0.1rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.status-badge {
+    padding: 0.1rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.status-badge.completed {
+    background: #d5f4e6;
+    color: #27ae60;
+}
+
+.status-badge.overdue {
+    background: #ffeaea;
+    color: #e74c3c;
+}
+
+.status-badge.pending {
+    background: #e3f2fd;
+    color: #2980b9;
+}
+
+.gantt-task-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    flex-wrap: wrap;
+}
+
+.gantt-task-bar-container {
+    flex: 1;
+    min-width: 600px;
+    position: relative;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.gantt-task-bar {
+    position: absolute;
+    height: 24px;
+    border-radius: 12px;
+    min-width: 8px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.gantt-task-row:hover .gantt-task-bar {
+    opacity: 1;
+}
+
+.overdue-bar {
+    border-radius: 4px;
+}
+
+.task-progress {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+}
+
+.gantt-task-deadline {
+    position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+.deadline-marker {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: #2c3e50;
+}
+
+.deadline-label {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    color: #7f8c8d;
+    background: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #eee;
+}
+
+.gantt-task-duration {
+    margin-left: 1rem;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    white-space: nowrap;
+}
+
+.overdue-duration {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.gantt-details {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.no-tasks-gantt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+    color: #7f8c8d;
+}
+
+.no-tasks-gantt button {
+    margin-top: 1rem;
+}
+
+/* Адаптивность для диаграммы Ганта */
+@media (max-width: 1200px) {
+    .gantt-task-header,
+    .gantt-task-info {
+        width: 250px;
+        min-width: 250px;
+    }
+    
+    .gantt-header,
+    .gantt-task-row {
+        min-width: 850px;
+    }
+    
+    .gantt-content {
+        min-width: 850px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gantt-header,
+    .gantt-task-row {
+        font-size: 0.9rem;
+        min-width: 800px;
+    }
+    
+    .gantt-content {
+        min-width: 800px;
+    }
+    
+    .gantt-task-header,
+    .gantt-task-info {
+        width: 200px;
+        min-width: 200px;
+    }
+    
+    .gantt-task-meta {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+
+/* Стиль для просроченных задач */
+.overdue-task {
+    border-left: 4px solid #e74c3c !important;
+    background: #fff5f5 !important;
+}
+
+/* Стили для таблицы всех задач */
+#allTasksTable {
+    min-width: 800px;
+}
+
+#allTasksTable th {
+    white-space: nowrap;
+}
+
+#allTasksTable td {
+    vertical-align: top;
+}
+
+/* Стили для участников команды */
+#teamMembersList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+/* Стили для предметов */
+.subject-card {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    border-left: 4px solid #3498db;
+}
+
+.subject-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+}
+
+.subject-card p {
+    margin: 0;
+    color: #555;
+}
+
+/* Уведомления */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
