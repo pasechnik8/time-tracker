@@ -11,7 +11,6 @@ namespace time_tracker.Models
         public DbSet<Subject> Subjects { get; set; } = null!;
         public DbSet<ProjectTask> Tasks { get; set; } = null!;
         public DbSet<Team> Teams { get; set; } = null!;
-        public DbSet<Result> Results { get; set; } = null!;
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,20 +34,6 @@ namespace time_tracker.Models
                 .WithMany(s => s.Tasks)
                 .HasForeignKey(t => t.SubjectId)
                 .OnDelete(DeleteBehavior.SetNull);
-                
-            // Result - ProjectTask: 1 ко многим
-            modelBuilder.Entity<Result>()
-                .HasOne(r => r.Task)
-                .WithMany(t => t.Results)
-                .HasForeignKey(r => r.TaskId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Result - Student: 1 ко многим
-            modelBuilder.Entity<Result>()
-                .HasOne(r => r.Student)
-                .WithMany(s => s.Results)
-                .HasForeignKey(r => r.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
                 
             // Many-to-many для связей задач (Prerequisites)
             modelBuilder.Entity<ProjectTask>()

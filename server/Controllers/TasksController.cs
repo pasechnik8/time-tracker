@@ -33,7 +33,6 @@ namespace time_tracker.Controllers
                 .Include(t => t.Subject)
                 .Include(t => t.AssignedStudent)
                 .Include(t => t.Prerequisites)
-                .Include(t => t.Results)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
@@ -50,6 +49,8 @@ namespace time_tracker.Controllers
         {
             task.Id = 0;
             task.CreatedAt = DateTime.UtcNow;
+            task.IsCompleted = false;
+            task.CompletedAt = null;
             _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
 
@@ -122,6 +123,37 @@ namespace time_tracker.Controllers
                 .ToListAsync();
 
             return tasks;
+        }
+
+        // POST: api/tasks/{id}/toggle - Переключить статус выполнения задачи
+        [HttpPost("{id}/toggle")]
+        public async Task<ActionResult<ProjectTask>> ToggleTaskCompletion(int id)
+        {
+            var task = await _context.Tasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            task.IsCompleted = !task.IsCompleted;
+            task.CompletedAt = task.IsCompleted ? DateTime.UtcNow : null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(task);
+        }
+
+        // GET: api/tasks/{id}/status - Получить статус задачи
+        [HttpGet("{id}/status")]
+        public async Task<ActionResult<bool>> GetTaskStatus(int id)
+        {
+            var task = await _context.Tasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(task.IsCompleted);
         }
 
         private bool TaskExists(int id)

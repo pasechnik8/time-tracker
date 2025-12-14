@@ -11,6 +11,10 @@ namespace time_tracker.Models
         // Дедлайн задачи
         public DateTime? Deadline { get; set; }
 
+        public bool IsCompleted { get; set; } = false;
+
+        public DateTime? CompletedAt { get; set; }
+
         // Ссылки на необходимые задачи
         [JsonIgnore]
         public List<ProjectTask> Prerequisites { get; set; } = new();
@@ -24,8 +28,5 @@ namespace time_tracker.Models
         public int? AssignedStudentId { get; set; }
         [JsonIgnore]
         public Student? AssignedStudent { get; set; }
-
-        [JsonIgnore]
-        public List<Result> Results { get; set; } = new();
     }
 }

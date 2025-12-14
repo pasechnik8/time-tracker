@@ -226,7 +226,7 @@ async function loadInitialData() {
         }
 
         // Загружаем статусы выполнения для задач
-        await loadTaskStatuses();
+        // await loadTaskStatuses();
 
         updateUI();
     } catch (error) {
@@ -235,41 +235,41 @@ async function loadInitialData() {
 }
 
 // === Загрузка статусов выполнения задач ===
-async function loadTaskStatuses() {
-    // Загружаем статусы для моих задач
-    if (myTasks && myTasks.length > 0) {
-        for (let task of myTasks) {
-            try {
-                const status = await apiCall(`/Results/status/${task.id}`);
-                if (status !== undefined && status !== null) {
-                    if (!task.results) task.results = [];
-                    task.results[0] = { isCompleted: status };
-                }
-            } catch (error) {
-                console.error(`Error loading status for task ${task.id}:`, error);
-                if (!task.results) task.results = [];
-                task.results[0] = { isCompleted: false };
-            }
-        }
-    }
+// async function loadTaskStatuses() {
+//     // Загружаем статусы для моих задач
+//     if (myTasks && myTasks.length > 0) {
+//         for (let task of myTasks) {
+//             try {
+//                 const status = await apiCall(`/Tasks/${task.id}/status`);
+//                 if (status !== undefined && status !== null) {
+//                     if (!task.results) task.results = [];
+//                     task.results[0] = { isCompleted: status };
+//                 }
+//             } catch (error) {
+//                 console.error(`Error loading status for task ${task.id}:`, error);
+//                 if (!task.results) task.results = [];
+//                 task.results[0] = { isCompleted: false };
+//             }
+//         }
+//     }
     
-    // Загружаем статусы для задач команды
-    if (teamTasks && teamTasks.length > 0) {
-        for (let task of teamTasks) {
-            try {
-                const status = await apiCall(`/Results/status/${task.id}`);
-                if (status !== undefined && status !== null) {
-                    if (!task.results) task.results = [];
-                    task.results[0] = { isCompleted: status };
-                }
-            } catch (error) {
-                console.error(`Error loading status for task ${task.id}:`, error);
-                if (!task.results) task.results = [];
-                task.results[0] = { isCompleted: false };
-            }
-        }
-    }
-}
+//     // Загружаем статусы для задач команды
+//     if (teamTasks && teamTasks.length > 0) {
+//         for (let task of teamTasks) {
+//             try {
+//                 const status = await apiCall(`/Tasks/${task.id}/status`);
+//                 if (status !== undefined && status !== null) {
+//                     if (!task.results) task.results = [];
+//                     task.results[0] = { isCompleted: status };
+//                 }
+//             } catch (error) {
+//                 console.error(`Error loading status for task ${task.id}:`, error);
+//                 if (!task.results) task.results = [];
+//                 task.results[0] = { isCompleted: false };
+//             }
+//         }
+//     }
+// }
 
 // === Обновление всего UI ===
 function updateUI() {
@@ -349,8 +349,7 @@ function renderTasks() {
         const subjectName = subject ? subject.name : 'Не указан';
         
         // Определяем статус задачи
-        const completedResults = task.results?.filter(r => r.isCompleted) || [];
-        const isCompleted = completedResults.length > 0;
+        const isCompleted = task.isCompleted || false;
         const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isCompleted;
         
         let statusText = 'В работе';
@@ -459,8 +458,7 @@ function renderAllTasksTable() {
         const subjectName = subject ? subject.name : 'Не указан';
         
         // Определяем статус задачи
-        const completedResults = task.results?.filter(r => r.isCompleted) || [];
-        const isCompleted = completedResults.length > 0;
+        const isCompleted = task.isCompleted || false;
         const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isCompleted;
         
         let statusText = 'В работе';
@@ -879,7 +877,7 @@ async function saveTaskEdit() {
 // === Чекбокс для выполнения задач ===
 async function toggleTaskCompletion(taskId) {
     try {
-        const response = await apiCall(`/Results/toggle/${taskId}`, {
+        const response = await apiCall(`/Tasks/${taskId}/toggle`, {
             method: 'POST'
         });
 
@@ -916,23 +914,15 @@ function updateTaskStatus(taskId, isCompleted) {
     // Обновляем в myTasks
     const myTask = myTasks?.find(t => t.id === taskId);
     if (myTask) {
-        if (!myTask.results) myTask.results = [];
-        if (myTask.results.length === 0) {
-            myTask.results.push({ isCompleted: isCompleted });
-        } else {
-            myTask.results[0].isCompleted = isCompleted;
-        }
+        myTask.isCompleted = isCompleted;
+        myTask.completedAt = isCompleted ? new Date().toISOString() : null;
     }
     
     // Обновляем в teamTasks
     const teamTask = teamTasks?.find(t => t.id === taskId);
     if (teamTask) {
-        if (!teamTask.results) teamTask.results = [];
-        if (teamTask.results.length === 0) {
-            teamTask.results.push({ isCompleted: isCompleted });
-        } else {
-            teamTask.results[0].isCompleted = isCompleted;
-        }
+        teamTask.isCompleted = isCompleted;
+        teamTask.completedAt = isCompleted ? new Date().toISOString() : null;
     }
 }
 
@@ -958,14 +948,14 @@ function renderGanttChart() {
         const allTasks = [...(myTasks || []), ...(teamTasks || [])];
         const uniqueTasks = Array.from(new Map(allTasks.map(t => [t.id, t])).values());
         tasksToShow = uniqueTasks.filter(task => {
-            const completed = task.results?.[0]?.isCompleted || false;
+            const completed = task.isCompleted || false;
             return !completed;
         });
     } else if (ganttFilter === 'overdue') {
         const allTasks = [...(myTasks || []), ...(teamTasks || [])];
         const uniqueTasks = Array.from(new Map(allTasks.map(t => [t.id, t])).values());
         tasksToShow = uniqueTasks.filter(task => {
-            const completed = task.results?.[0]?.isCompleted || false;
+            const completed = task.isCompleted || false;
             const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !completed;
             return isOverdue;
         });
@@ -1078,7 +1068,7 @@ function renderGanttTasks(tasks, minDate, maxDate, dateRange, container) {
         const assignee = (students || []).find(s => s.id === task.assignedStudentId);
         const isMyTask = task.assignedStudentId === currentUser.id;
         const subject = (subjects || []).find(s => s.id === task.subjectId);
-        const completed = task.results?.[0]?.isCompleted || false;
+        const completed = task.isCompleted || false;
         
         // Определяем цвет задачи
         let taskColor = getTaskColor(task, completed);
@@ -1233,7 +1223,7 @@ function showGanttTaskDetails(taskId) {
     
     const assignee = (students || []).find(s => s.id === task.assignedStudentId);
     const subject = (subjects || []).find(s => s.id === task.subjectId);
-    const completed = task.results?.[0]?.isCompleted || false;
+    const completed = task.isCompleted || false;
     const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !completed;
     
     const details = document.getElementById('ganttTaskDetails');
