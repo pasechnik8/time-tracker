@@ -33,8 +33,9 @@ builder.Services.AddCors(options =>
 });
 
 // Конфигурация базы данных
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=teamtracker.db"));
+    options.UseNpgsql(connectionString));
 
 // ===== ДОБАВЛЯЕМ JWT АУТЕНТИФИКАЦИЮ =====
 builder.Services.AddAuthentication(options =>
@@ -66,7 +67,16 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    
+    try
+    {
+        db.Database.Migrate();
+        Console.WriteLine("Database migrated successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error migrating database: {ex.Message}");
+    }
 }
 
 app.UseCors("AllowFrontend");

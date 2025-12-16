@@ -14,19 +14,33 @@ namespace time_tracker.Models
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+            
             // Student - Team: 1 ко многим
-            modelBuilder.Entity<Student>()
-                .HasOne(s => s.Team)
-                .WithMany(t => t.Members)
-                .HasForeignKey(s => s.TeamId)
-                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Student>(entity =>
+            {
+                entity.HasOne(s => s.Team)
+                    .WithMany(t => t.Members)
+                    .HasForeignKey(s => s.TeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                
+                entity.HasIndex(e => e.Email).IsUnique();
+                entity.HasIndex(e => e.TeamId);
+            });
                 
             // ProjectTask - Student: 1 ко многим  
-            modelBuilder.Entity<ProjectTask>()
-                .HasOne(t => t.AssignedStudent)
-                .WithMany(s => s.AssignedTasks)
-                .HasForeignKey(t => t.AssignedStudentId)
-                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ProjectTask>(entity =>
+            {
+                entity.HasOne(t => t.AssignedStudent)
+                    .WithMany(s => s.AssignedTasks)
+                    .HasForeignKey(t => t.AssignedStudentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                
+                entity.HasIndex(e => e.AssignedStudentId);
+                entity.HasIndex(e => e.SubjectId);
+                entity.HasIndex(e => e.IsCompleted);
+                entity.HasIndex(e => e.Deadline);
+            });
                 
             // ProjectTask - Subject: 1 ко многим
             modelBuilder.Entity<ProjectTask>()
@@ -35,14 +49,26 @@ namespace time_tracker.Models
                 .HasForeignKey(t => t.SubjectId)
                 .OnDelete(DeleteBehavior.SetNull);
                 
-            // Many-to-many для связей задач (Prerequisites)
             modelBuilder.Entity<ProjectTask>()
                 .HasMany(t => t.Prerequisites)
                 .WithMany()
                 .UsingEntity<Dictionary<string, object>>(
                     "TaskPrerequisites",
-                    j => j.HasOne<ProjectTask>().WithMany().HasForeignKey("PrerequisiteId"),
-                    j => j.HasOne<ProjectTask>().WithMany().HasForeignKey("TaskId")
+                    j => j
+                        .HasOne<ProjectTask>()
+                        .WithMany()
+                        .HasForeignKey("PrerequisiteId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    j => j
+                        .HasOne<ProjectTask>()
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    j =>
+                    {
+                        j.HasKey("TaskId", "PrerequisiteId");
+                        j.HasIndex("PrerequisiteId");
+                    }
                 );
         }
     }
