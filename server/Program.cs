@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://127.0.0.1:5500", "http://localhost:5500", "https://*.app.timeweb.cloud", "https://pasechnik8-time-tracker-ed6d.twc1.net/#", "https://pasechnik8-time-tracker-ed6d.twc1.net")
+        policy.WithOrigins("http://127.0.0.1:5500", "http://localhost:5500", "https://*.app.timeweb.cloud", "https://pasechnik8-time-tracker-ed6d.twc1.net/#", "https://pasechnik8-time-tracker-ed6d.twc1.net", "https://pasechnik8-time-tracker-9a08.twc1.net")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

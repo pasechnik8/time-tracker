@@ -122,8 +122,17 @@ namespace time_tracker.Controllers
         // Вспомогательные методы
         private string HashPassword(string password)
         {
+
+            var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+                   ?? _configuration["Jwt:Secret"];
+    
+            if (string.IsNullOrEmpty(jwtSecret))
+            {
+                jwtSecret = "fallback-secret";
+            }
+
             using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password + _configuration["Jwt:Secret"]);
+            var bytes = Encoding.UTF8.GetBytes(password + jwtSecret);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
         }
@@ -136,6 +145,15 @@ namespace time_tracker.Controllers
 
         private string GenerateJwtToken(Student student)
         {
+
+            var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+                   ?? _configuration["Jwt:Secret"];
+    
+            if (string.IsNullOrEmpty(jwtSecret))
+            {
+                throw new InvalidOperationException("JWT Secret not configured in environment variables or appsettings.json");
+            }
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, student.Id.ToString()),
@@ -144,8 +162,7 @@ namespace time_tracker.Controllers
                 new Claim(ClaimTypes.Role, student.CurrentRole.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-                _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured")));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
             
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             
