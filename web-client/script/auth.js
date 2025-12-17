@@ -1,5 +1,4 @@
 import { apiCall, loadInitialData } from './api.js';
-import { updateUI } from './ui.js';
 
 export async function login() {
     const email = document.getElementById('loginEmail').value.trim();
