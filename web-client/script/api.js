@@ -1,4 +1,4 @@
-const API_BASE = 'https://pasechnik8-time-tracker-ed6d.twc1.net/api/';
+const API_BASE = 'https://pasechnik8-time-tracker-ed6d.twc1.net/api';
 
 export async function apiCall(endpoint, options = {}) {
     try {
