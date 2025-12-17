@@ -7,7 +7,10 @@ using time_tracker.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // Конфигурация порта
-builder.WebHost.UseUrls("http://localhost:5000");
+// builder.WebHost.UseUrls("http://localhost:5000");
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+builder.WebHost.UseUrls($"http://*:{port}");
 
 // Конфигурация JSON
 builder.Services.AddControllers()
@@ -25,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://127.0.0.1:5500", "http://localhost:5500")
+        policy.WithOrigins("http://127.0.0.1:5500", "http://localhost:5500", "https://*.app.timeweb.cloud")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -33,7 +36,15 @@ builder.Services.AddCors(options =>
 });
 
 // Конфигурация базы данных
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION") 
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Database connection string is not configured");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -45,6 +56,15 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+
+    var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+                   ?? builder.Configuration["Jwt:Secret"];
+    
+    if (string.IsNullOrEmpty(jwtSecret))
+    {
+        throw new InvalidOperationException("JWT Secret is not configured");
+    }
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -54,8 +74,7 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "time-tracker",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "time-tracker-users",
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"] ?? 
-                "your-super-secret-key-at-least-32-characters-long"))
+            Encoding.UTF8.GetBytes(jwtSecret))
     };
 });
 
