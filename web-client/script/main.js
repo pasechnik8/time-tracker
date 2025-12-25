@@ -67,3 +67,8 @@ window.closeGanttDetails = gantt.closeGanttDetails;
 window.viewTaskDetails = tasks.viewTaskDetails;
 
 window.updateUI = ui.updateUI;
+
+window.openEditSubjectModal = ui.openEditSubjectModal;
+window.saveSubjectEdit = ui.saveSubjectEdit;
+window.deleteSubjectConfirm = ui.deleteSubjectConfirm;
+window.deleteSubject = ui.deleteSubject;

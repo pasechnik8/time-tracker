@@ -18,7 +18,7 @@ namespace time_tracker.Models
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
         
-        [JsonIgnore]
+        //[JsonIgnore]
         public List<ProjectTask> Tasks { get; set; } = new();
     }
 }

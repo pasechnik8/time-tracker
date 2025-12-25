@@ -5,7 +5,7 @@ obj/
 *.suo
 .vs/
 packages/
-
+appsettings.Development.json
 # Системные файлы
 .DS_Store
 Thumbs.db

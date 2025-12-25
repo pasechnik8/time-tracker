@@ -296,6 +296,21 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Модальное окно редактирования предмета -->
+            <div id="editSubjectModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal('editSubjectModal')">&times;</span>
+                    <h2>Редактировать предмет</h2>
+                    <input type="hidden" id="editSubjectId">
+                    <input type="text" id="editSubjectName" placeholder="Название предмета" required>
+                    <textarea id="editSubjectDescription" placeholder="Описание предмета" rows="3"></textarea>
+                    <div class="mt-1">
+                        <button onclick="saveSubjectEdit()">Сохранить</button>
+                        <button onclick="closeModal('editSubjectModal')" class="secondary">Отмена</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

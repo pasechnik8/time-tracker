@@ -226,12 +226,26 @@ export function renderSubjects() {
         const tasksCount = subject.tasks ? subject.tasks.length : 0;
         
         return `
-            <div class="subject-card" style="margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border-left:4px solid #3498db;">
-                <h3 style="margin:0 0 0.5rem 0;">${subject.name}</h3>
-                <p style="margin:0; color:#555;">${subject.description || 'Нет описания'}</p>
-                <p style="margin-top:0.5rem; font-size:0.9rem; color:#666;">
-                    Задач: <strong>${tasksCount}</strong>
-                </p>
+            <div class="subject-card" style="margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:12px; border-left:4px solid #3498db; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <h3 style="margin:0 0 0.5rem 0;">${subject.name}</h3>
+                        <p style="margin:0; color:#555;">${subject.description || 'Нет описания'}</p>
+                        <p style="margin-top:0.5rem; font-size:0.9rem; color:#666;">
+                            Задач: <strong>${tasksCount}</strong>
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+                        <button onclick="openEditSubjectModal(${subject.id})" 
+                                style="background:#f39c12; padding:0.4rem 0.8rem; font-size:0.9rem;">
+                            Редактировать
+                        </button>
+                        <button onclick="deleteSubjectConfirm(${subject.id})" 
+                                style="background:#e74c3c; padding:0.4rem 0.8rem; font-size:0.9rem;">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
             </div>`;
     }).join('');
 }
@@ -305,6 +319,74 @@ export async function createSubject() {
         alert(`Предмет "${name}" создан!`);
     } catch (error) {
         console.error('Create subject error:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+export function openEditSubjectModal(subjectId) {
+    const subject = window.subjects.find(s => s.id === subjectId);
+    if (!subject) return;
+    
+    document.getElementById('editSubjectId').value = subjectId;
+    document.getElementById('editSubjectName').value = subject.name || '';
+    document.getElementById('editSubjectDescription').value = subject.description || '';
+    
+    openModal('editSubjectModal');
+}
+
+// Сохранить изменения предмета
+export async function saveSubjectEdit() {
+    const subjectId = document.getElementById('editSubjectId').value;
+    const name = document.getElementById('editSubjectName').value.trim();
+    const description = document.getElementById('editSubjectDescription').value.trim();
+    
+    if (!subjectId || !name) {
+        alert("Введите название предмета!");
+        return;
+    }
+    
+    try {
+        await apiCall(`/Subjects/${subjectId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                id: parseInt(subjectId),
+                name: name,
+                description: description
+            })
+        });
+        
+        await window.loadInitialData();
+        closeModal('editSubjectModal');
+        showNotification('Предмет обновлен!');
+    } catch (error) {
+        console.error('Update subject error:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+// Подтверждение удаления предмета
+export function deleteSubjectConfirm(subjectId) {
+    const subject = window.subjects.find(s => s.id === subjectId);
+    if (!subject) return;
+    
+    if (!confirm(`Вы уверены, что хотите удалить предмет "${subject.name}"?`)) {
+        return;
+    }
+    
+    deleteSubject(subjectId);
+}
+
+// Удаление предмета
+export async function deleteSubject(subjectId) {
+    try {
+        await apiCall(`/Subjects/${subjectId}`, {
+            method: 'DELETE'
+        });
+        
+        await window.loadInitialData();
+        showNotification('Предмет удален!');
+    } catch (error) {
+        console.error('Delete subject error:', error);
         alert(`Ошибка: ${error.message}`);
     }
 }
