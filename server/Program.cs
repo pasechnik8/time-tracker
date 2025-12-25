@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Конфигурация порта
 // builder.WebHost.UseUrls("http://localhost:5000");
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://*:{port}");
 
 // Конфигурация JSON
