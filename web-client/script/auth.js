@@ -87,6 +87,7 @@ export function switchToAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('mainApp').style.display = 'none';
     clearAuthFields();
+    clearAuthMessage();
 }
 
 export function switchToMainApp() {
@@ -105,13 +106,13 @@ export function switchToMainApp() {
 export function showRegister() {
     document.getElementById('loginForm').style.display = 'none';
     document.getElementById('registerForm').style.display = 'block';
-    document.getElementById('authMessage').innerHTML = '';
+    clearAuthMessage();
 }
 
 export function showLogin() {
     document.getElementById('registerForm').style.display = 'none';
     document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('authMessage').innerHTML = '';
+    clearAuthMessage();
 }
 
 export async function checkAuth() {
@@ -139,11 +140,19 @@ function clearAuthFields() {
     document.getElementById('registerName').value = '';
     document.getElementById('registerEmail').value = '';
     document.getElementById('registerPassword').value = '';
-    document.getElementById('authMessage').innerHTML = '';
+    // document.getElementById('authMessage').innerHTML = '';
 }
 
 function showAuthMessage(message, type = 'error') {
     const messageEl = document.getElementById('authMessage');
     messageEl.innerHTML = message;
     messageEl.className = `auth-message ${type}`;
+    messageEl.style.display = 'block';
+}
+
+function clearAuthMessage() {
+    const messageEl = document.getElementById('authMessage');
+    messageEl.textContent = '';
+    messageEl.className = 'auth-message';
+    messageEl.style.display = 'none';
 }
