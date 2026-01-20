@@ -180,6 +180,7 @@ tr:hover { background:#f8f9fa; }
 .status.completed { background:#27ae60; color:white; }
 .status.in-progress { background:#f39c12; color:white; }
 .status.pending { background:#95a5a6; color:white; }
+.status.overdue {background: #e74c3c; color: white; }
 
 .task-item { padding:0.75rem; background:#f8f9fa; border-radius:10px; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; }
 .task-item.blocked { opacity:0.6; pointer-events:none; }
