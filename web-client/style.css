@@ -204,6 +204,109 @@ tr:hover { background:#f8f9fa; }
 .close { float:right; font-size:1.8rem; font-weight:bold; cursor:pointer; color:#aaa; }
 .close:hover { color:#e74c3c; }
 
+
+.modal-content h2 {
+    margin-bottom: 1.2rem;
+    color: #2c3e50;
+    text-align: center;
+}
+
+/* Лейблы */
+.modal-content label {
+    display: block;
+    margin: 0.8rem 0 0.3rem;
+    font-weight: 600;
+    color: #34495e;
+    font-size: 0.9rem;
+}
+
+/* Поля ввода */
+.modal-content input[type="text"],
+.modal-content input[type="datetime-local"],
+.modal-content textarea,
+.modal-content select {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid #dcdcdc;
+    font-size: 0.95rem;
+    transition: border 0.3s, box-shadow 0.3s;
+    background: #fdfdfd;
+}
+
+.modal-content input[type="text"] {
+    margin-bottom: 0.75rem;
+}
+
+/* Placeholder */
+.modal-content input::placeholder,
+.modal-content textarea::placeholder {
+    color: #aaa;
+}
+
+/* Focus */
+.modal-content input:focus,
+.modal-content textarea:focus,
+.modal-content select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+/* Textarea */
+.modal-content textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+/* Select */
+.modal-content select {
+    cursor: pointer;
+}
+
+/* Кнопки в модалке */
+.modal-content .mt-1 {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Кнопка удаления */
+.modal-content button[style*="background:#e74c3c"] {
+    background: #e74c3c !important;
+}
+
+.modal-content button[style*="background:#e74c3c"]:hover {
+    background: #c0392b !important;
+}
+
+/* Кнопка закрытия */
+.modal .close {
+    position: absolute;
+    right: 18px;
+    top: 14px;
+}
+
+/* Адаптив */
+@media (max-width: 480px) {
+    .modal-content {
+        padding: 1.5rem;
+        margin: 15% auto;
+    }
+
+    .modal-content .mt-1 {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modal-content button {
+        width: 100%;
+    }
+}
+
+
+
 /* === Диаграмма Ганта === */
 .gantt-container {
     overflow-x: auto;
